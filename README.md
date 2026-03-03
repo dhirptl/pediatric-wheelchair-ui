@@ -12,3 +12,6 @@ This project addresses the gap in intuitive controls by developing a Unity-based
 ## Tech Stack
 * **Engine:** Unity 2022.3 LTS (URP)
 * **Robotics Framework:** ROS 2 (Humble)
+
+## Project Context
+This project is being developed as part of my research work in the NCBL (Neuromechanics Lab) at the University of Alberta. It is being built under the guidance of a graduate student researcher to directly support ongoing academic work in assistive pediatric robotics.
