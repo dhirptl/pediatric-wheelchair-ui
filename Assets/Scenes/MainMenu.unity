@@ -658,7 +658,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &763074788
 RectTransform:
   m_ObjectHideFlags: 0
@@ -901,6 +901,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   modeSelectionPanel: {fileID: 763074787}
   destinationPanel: {fileID: 1351399697}
+  toggleKey: 32
+  selectKey: 13
+  modeButtons:
+  - {fileID: 325731431}
+  - {fileID: 525910423}
+  destinationButtons:
+  - {fileID: 1794401300}
+  - {fileID: 871980947}
+  - {fileID: 1920034008}
+  - {fileID: 1191184664}
 --- !u!4 &840778677
 Transform:
   m_ObjectHideFlags: 0
@@ -1173,7 +1183,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1351399698
 MonoBehaviour:
   m_ObjectHideFlags: 0
