@@ -1052,7 +1052,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 871980948}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 840778676}
+        m_TargetAssemblyTypeName: MainMenuController, Assembly-CSharp
+        m_MethodName: OnDestinationSelected
+        m_Mode: 5
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: Target_Bedroom
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &871980948
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1194,7 +1206,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1191184665}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 840778676}
+        m_TargetAssemblyTypeName: MainMenuController, Assembly-CSharp
+        m_MethodName: OnDestinationSelected
+        m_Mode: 5
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: Target_Kitchen
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &1191184665
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1483,7 +1507,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1794401301}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 840778676}
+        m_TargetAssemblyTypeName: MainMenuController, Assembly-CSharp
+        m_MethodName: OnDestinationSelected
+        m_Mode: 5
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: Target_Bathroom
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &1794401301
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1625,7 +1661,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1920034009}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 840778676}
+        m_TargetAssemblyTypeName: MainMenuController, Assembly-CSharp
+        m_MethodName: OnDestinationSelected
+        m_Mode: 5
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: Target_LivingRoom
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &1920034009
 MonoBehaviour:
   m_ObjectHideFlags: 0
