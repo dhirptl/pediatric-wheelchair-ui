@@ -1245,6 +1245,7 @@ GameObject:
   - component: {fileID: 876892048}
   - component: {fileID: 876892047}
   - component: {fileID: 876892046}
+  - component: {fileID: 876892052}
   m_Layer: 0
   m_Name: Wheelchair_Avatar
   m_TagString: Untagged
@@ -1259,7 +1260,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 876892045}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 080f5770b583142f78451962104d5ca8, type: 3}
   m_Name: 
@@ -1374,6 +1375,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &876892052
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 876892045}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc76351ada21f42fb9b61d156d03e3e6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &955349081
 GameObject:
   m_ObjectHideFlags: 0

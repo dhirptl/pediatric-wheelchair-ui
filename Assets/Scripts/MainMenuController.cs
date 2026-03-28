@@ -82,4 +82,13 @@ public class MainMenuController : MonoBehaviour
         currentIndex = 0; // Reset the highlight to the first room card
         HighlightCurrentButton();
     }
+    public void OnDestinationSelected(string targetName)
+    {
+        // 1. Save the exact name of the 3D target object
+        PlayerPrefs.SetString("Destination", targetName);
+        PlayerPrefs.Save(); 
+
+        // 2. Load the 3D Map Scene
+        SceneManager.LoadScene("MapScene");
+    }
 }
