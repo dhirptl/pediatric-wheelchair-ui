@@ -154,7 +154,7 @@ MonoBehaviour:
   occupancyGrid: {fileID: 2800000, guid: c8dfe3e6e6c424f76b64a2d7980bb24e, type: 3}
   wallPrefab: {fileID: 1819528886160818610, guid: 10bbe1c68ed444d4e89d5abcc5a8da04,
     type: 3}
-  wallHeight: 8
+  wallHeight: 10
   navMeshSurface: {fileID: 0}
 --- !u!4 &41019063
 Transform:
