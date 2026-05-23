@@ -1,5 +1,5 @@
 using UnityEngine;
-using Unity.AI.Navigation; // We need this to command the NavMesh!
+using Unity.AI.Navigation; 
 
 public class MapGenerator : MonoBehaviour
 {
@@ -7,14 +7,15 @@ public class MapGenerator : MonoBehaviour
     public Texture2D occupancyGrid;
     public GameObject wallPrefab;
 
-    [Header("Settings")]
-    public float wallHeight = 4f; // Makes the walls much taller
-    
+    [Header("Aesthetics")]
+    public float wallHeight = 10f; // Defaulted to 10 for the tall walls
+    public Material floorMaterial; // ADDED: Slot for your blue/green floor material
+
     [Header("Auto-Baking")]
-    // We will drag the NavMeshSurface component into this slot in the Inspector
     public NavMeshSurface navMeshSurface; 
 
-    void Start()
+    // CHANGED: Awake runs before Start, ensuring the floor exists before the wheelchair drops!
+    void Awake()
     {
         Generate3DMap();
     }
@@ -34,6 +35,12 @@ public class MapGenerator : MonoBehaviour
         floor.transform.localScale = new Vector3(occupancyGrid.width / 10f, 1, occupancyGrid.height / 10f);
         floor.transform.position = Vector3.zero; // Put it at the exact center
         floor.transform.parent = mapParent.transform;
+
+        // ADDED: Paint the floor with our custom material!
+        if (floorMaterial != null)
+        {
+            floor.GetComponent<Renderer>().material = floorMaterial;
+        }
 
         // 3. BUILD THE WALLS
         for (int x = 0; x < occupancyGrid.width; x++)
