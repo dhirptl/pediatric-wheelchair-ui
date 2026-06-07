@@ -11,8 +11,17 @@ public class MapGenerator : MonoBehaviour
     public float wallHeight = 10f; // Defaulted to 10 for the tall walls
     public Material floorMaterial; // ADDED: Slot for your blue/green floor material
 
+    [Header("Generation")]
+    [Tooltip("Pixels per wall cell. 1 = one cube per pixel (crisp but heavy). Higher = fewer, chunkier cubes. Uses OR-reduction so walls only thicken, never develop gaps.")]
+    public int cellSize = 2;
+    [Tooltip("A pixel counts as a wall when its grayscale is below this value.")]
+    [Range(0f, 1f)] public float wallThreshold = 0.5f;
+
     [Header("Auto-Baking")]
-    public NavMeshSurface navMeshSurface; 
+    public NavMeshSurface navMeshSurface;
+
+    // Exposed for verification/debugging after a build.
+    public static int LastWallCount;
 
     // CHANGED: Awake runs before Start, ensuring the floor exists before the wheelchair drops!
     void Awake()
@@ -42,35 +51,56 @@ public class MapGenerator : MonoBehaviour
             floor.GetComponent<Renderer>().material = floorMaterial;
         }
 
-        // 3. BUILD THE WALLS
-        for (int x = 0; x < occupancyGrid.width; x++)
+        // 3. BUILD THE WALLS (block-based, OR-reduced so walls stay watertight)
+        int cell = Mathf.Max(1, cellSize);
+        int w = occupancyGrid.width;
+        int h = occupancyGrid.height;
+        Color[] pixels = occupancyGrid.GetPixels(); // one read instead of width*height GetPixel calls
+        int wallCount = 0;
+
+        for (int bx = 0; bx < w; bx += cell)
         {
-            for (int y = 0; y < occupancyGrid.height; y++)
+            for (int by = 0; by < h; by += cell)
             {
-                Color pixelColor = occupancyGrid.GetPixel(x, y);
-
-                // If pixel is black/dark
-                if (pixelColor.grayscale < 0.5f)
+                // A cell is a wall if ANY pixel in the block is dark (prevents thin walls vanishing).
+                bool occupied = false;
+                for (int ix = bx; ix < bx + cell && ix < w && !occupied; ix++)
                 {
-                    // Apply our center offset!
-                    Vector3 spawnPosition = new Vector3(x - offsetX, wallHeight / 2f, y - offsetZ);
-
-                    GameObject newWall = Instantiate(wallPrefab, spawnPosition, Quaternion.identity);
-                    
-                    // Stretch the cube on the Y axis to make it a tall wall
-                    newWall.transform.localScale = new Vector3(1f, wallHeight, 1f);
-                    newWall.transform.parent = mapParent.transform;
+                    for (int iy = by; iy < by + cell && iy < h; iy++)
+                    {
+                        if (pixels[ix + iy * w].grayscale < wallThreshold) { occupied = true; break; }
+                    }
                 }
+                if (!occupied) continue;
+
+                // Center of the block, with our map-centering offset applied.
+                float cx = bx + cell / 2f;
+                float cz = by + cell / 2f;
+                Vector3 spawnPosition = new Vector3(cx - offsetX, wallHeight / 2f, cz - offsetZ);
+
+                GameObject newWall = Instantiate(wallPrefab, spawnPosition, Quaternion.identity);
+                // Footprint = one cell, stretched tall on Y.
+                newWall.transform.localScale = new Vector3(cell, wallHeight, cell);
+                newWall.transform.parent = mapParent.transform;
+                wallCount++;
             }
         }
 
-        Debug.Log("Map Built and Centered!");
+        LastWallCount = wallCount;
+        Debug.Log("Map Built and Centered! Walls: " + wallCount);
 
         // 4. AUTO-BAKE THE NAVMESH
+        // Self-heal: the inspector reference can be lost on save/reload, so fall back to the
+        // NavMeshSurface on this same GameObject.
+        if (navMeshSurface == null) navMeshSurface = GetComponent<NavMeshSurface>();
         if (navMeshSurface != null)
         {
             navMeshSurface.BuildNavMesh();
             Debug.Log("NavMesh Automatically Baked!");
+        }
+        else
+        {
+            Debug.LogWarning("No NavMeshSurface found; the avatar will have no NavMesh to navigate.");
         }
     }
 }
