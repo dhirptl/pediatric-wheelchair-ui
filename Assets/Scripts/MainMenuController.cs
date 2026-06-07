@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI; 
+using UnityEngine.UI;
 
 public class MainMenuController : MonoBehaviour
 {
@@ -8,60 +8,50 @@ public class MainMenuController : MonoBehaviour
     public GameObject modeSelectionPanel;
     public GameObject destinationPanel;
 
-    [Header("BCI Controls")]
-    public KeyCode toggleKey = KeyCode.Space;
-    public KeyCode selectKey = KeyCode.Return; 
-
-    [Header("Accessibility Settings")]
-    public float inputCooldown = 0.5f; // Half a second delay between accepted inputs
-    private float nextInputTime = 0f;
+    [Header("Selection strategy")]
+    [Tooltip("ToggleSelect (default): Space cycles the highlight, Return selects. TimeScan: highlight auto-advances every dwellSeconds and a single key selects.")]
+    public SwitchScanner scanner = new SwitchScanner();
 
     [Header("Screen 1: Mode Buttons")]
     public Button[] modeButtons;
-    
+
     [Header("Screen 2: Destination Cards")]
     public Button[] destinationButtons;
 
     private Button[] currentActiveButtons;
-    private int currentIndex = 0;
 
     void Start()
     {
         modeSelectionPanel.SetActive(true);
         destinationPanel.SetActive(false);
-        currentActiveButtons = modeButtons;
-        HighlightCurrentButton();
+        SetActiveButtons(modeButtons);
     }
 
     void Update()
     {
-        // THE DEBOUNCER: If the current time hasn't passed our cooldown, ignore all key presses!
-        if (Time.time < nextInputTime) return;
+        if (currentActiveButtons == null || currentActiveButtons.Length == 0) return;
 
-        if (Input.GetKeyDown(toggleKey))
-        {
-            currentIndex++;
-            if (currentIndex >= currentActiveButtons.Length)
-            {
-                currentIndex = 0;
-            }
-            HighlightCurrentButton();
-        }
+        int selected = scanner.Tick(currentActiveButtons.Length);
+        HighlightCurrentButton();
+        if (selected >= 0)
+            currentActiveButtons[selected].onClick.Invoke();
+    }
 
-        if (Input.GetKeyDown(selectKey))
-        {
-            // Lock the input system for 0.5 seconds BEFORE we swap the screens
-            nextInputTime = Time.time + inputCooldown;
-            
-            currentActiveButtons[currentIndex].onClick.Invoke();
-        }
+    private void SetActiveButtons(Button[] buttons)
+    {
+        currentActiveButtons = buttons;
+        // Reset() also arms the input cooldown, so the key that selected the previous
+        // screen doesn't immediately trigger something on the new one.
+        scanner.Reset();
+        HighlightCurrentButton();
     }
 
     private void HighlightCurrentButton()
     {
-        if (currentActiveButtons.Length > 0)
+        if (currentActiveButtons != null && currentActiveButtons.Length > 0)
         {
-            currentActiveButtons[currentIndex].Select();
+            int i = Mathf.Clamp(scanner.CurrentIndex, 0, currentActiveButtons.Length - 1);
+            currentActiveButtons[i].Select();
         }
     }
 
@@ -69,22 +59,20 @@ public class MainMenuController : MonoBehaviour
 
     public void OnExplorerModeClicked()
     {
-        SceneManager.LoadScene("MapScene"); 
+        SceneManager.LoadScene("MapScene");
     }
 
     public void OnMagicTravelClicked()
     {
         modeSelectionPanel.SetActive(false);
         destinationPanel.SetActive(true);
-        currentActiveButtons = destinationButtons;
-        currentIndex = 0; 
-        HighlightCurrentButton();
+        SetActiveButtons(destinationButtons);
     }
 
     public void OnDestinationSelected(string targetName)
     {
         PlayerPrefs.SetString("Destination", targetName);
-        PlayerPrefs.Save(); 
+        PlayerPrefs.Save();
         SceneManager.LoadScene("MapScene");
     }
 }
