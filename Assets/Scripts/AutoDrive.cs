@@ -1,51 +1,73 @@
 using UnityEngine;
-using UnityEngine.AI;
-using System.Collections; // We need this to make the script wait!
 
+/// <summary>
+/// Magic Travel: reads the destination chosen in the main menu (PlayerPrefs) and
+/// sends a navigation goal through the WheelchairStateBridge once the runtime map
+/// (and its NavMesh) is ready. Destination resolution prefers admin-calibrated
+/// room coordinates when available, falling back to the Target_* scene markers.
+/// </summary>
 public class AutoDrive : MonoBehaviour
 {
-    private NavMeshAgent agent;
+    private WheelchairStateBridge bridge;
+    private bool driven;
 
     void Start()
     {
-        agent = GetComponent<NavMeshAgent>();
-        
-        // Tell Unity to run our custom delay sequence
-        StartCoroutine(DriveWithDelay());
+        bridge = GetComponent<WheelchairStateBridge>();
+        if (bridge == null)
+        {
+            Debug.LogError("[AutoDrive] No WheelchairStateBridge on the avatar; Magic Travel disabled.");
+            return;
+        }
+
+        if (MapGenerator.IsMapReady) Drive();
+        else MapGenerator.OnMapReady += Drive;
     }
 
-    // This is a Coroutine - it allows us to pause code execution
-    IEnumerator DriveWithDelay()
+    void OnDestroy()
     {
-        // Wait for exactly ONE frame to ensure the Map and NavMesh are 100% loaded
-        yield return null; 
+        MapGenerator.OnMapReady -= Drive;
+    }
 
-        // 1. Check if the Menu Scene saved a destination for us
-        string targetRoomName = PlayerPrefs.GetString("Destination", "");
+    private void Drive()
+    {
+        if (driven) return;
+        driven = true;
 
-        if (targetRoomName != "")
+        string targetRoomName = GamePrefs.GetString(GamePrefs.Destination);
+        if (string.IsNullOrEmpty(targetRoomName))
         {
-            // 2. Search the 3D scene for an object with that exact name
-            GameObject targetObject = GameObject.Find(targetRoomName);
+            Debug.Log("[AutoDrive] No saved destination; staying put (Explorer mode or fresh start).");
+            return;
+        }
+        GamePrefs.DeleteKey(GamePrefs.Destination);
 
-            if (targetObject != null)
-            {
-                // 3. Drive there!
-                agent.SetDestination(targetObject.transform.position);
-                Debug.Log("SUCCESS! Calculating path to: " + targetRoomName);
-            }
-            else
-            {
-                // This means there is a typo between your UI text box and the Hierarchy name!
-                Debug.LogError("Uh oh! I looked everywhere but could not find a target named EXACTLY: '" + targetRoomName + "'");
-            }
+        if (TryResolveDestination(targetRoomName, out Vector3 pos))
+        {
+            bridge.SendNavigationGoal(pos);
+            Debug.Log("[AutoDrive] Navigation goal sent for '" + targetRoomName + "' at " + pos);
         }
         else
         {
-            Debug.LogWarning("The Map loaded, but PlayerPrefs was completely empty. Did the UI save the string?");
+            Debug.LogError("[AutoDrive] Could not resolve a position for destination '" + targetRoomName + "'.");
         }
-        
-        // Clear the saved data
-        PlayerPrefs.DeleteKey("Destination");
+    }
+
+    private bool TryResolveDestination(string roomName, out Vector3 pos)
+    {
+        // Admin-calibrated coordinates win (set via the mini-map, Phase 2).
+        if (RoomCalibrationManager.Instance != null
+            && RoomCalibrationManager.Instance.TryGetRoomPosition(roomName, out pos))
+            return true;
+
+        GameObject marker = GameObject.Find(roomName);
+        if (marker != null)
+        {
+            pos = marker.transform.position;
+            return true;
+        }
+
+        pos = Vector3.zero;
+        return false;
     }
 }

@@ -1,4 +1,6 @@
+using System;
 using UnityEngine;
+using UnityEngine.AI;
 using Unity.AI.Navigation;
 using System.IO;
 
@@ -29,9 +31,26 @@ public class MapGenerator : MonoBehaviour
     // Exposed for verification/debugging after a build.
     public static int LastWallCount;
 
+    // --- Readiness signal ---------------------------------------------------
+    // Generation (incl. the NavMesh bake) runs synchronously in Awake, so by the
+    // time any Start() runs the map is normally ready. Consumers should follow:
+    //   if (MapGenerator.IsMapReady) Init(); else MapGenerator.OnMapReady += Init;
+    // (and unsubscribe in OnDestroy) so they also survive a future re-generation.
+    public static bool IsMapReady { get; private set; }
+    public static event Action OnMapReady;
+
+    // --- Grid queries (valid once IsMapReady) -------------------------------
+    public bool[,] OccupiedCells { get; private set; }
+    public int Cols { get; private set; }
+    public int Rows { get; private set; }
+
+    private int cellWorld;   // cell edge length in world units (== clamped cellSize)
+    private float offsetX, offsetZ;
+
     // CHANGED: Awake runs before Start, ensuring the floor exists before the wheelchair drops!
     void Awake()
     {
+        IsMapReady = false;
         Generate3DMap();
     }
 
@@ -48,8 +67,8 @@ public class MapGenerator : MonoBehaviour
 
         int w = grid.width;
         int h = grid.height;
-        float offsetX = w / 2f;
-        float offsetZ = h / 2f;
+        offsetX = w / 2f;
+        offsetZ = h / 2f;
 
         // 1. BUILD THE FLOOR (default Unity plane is 10x10 units, so divide by 10 to fit)
         GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
@@ -137,6 +156,73 @@ public class MapGenerator : MonoBehaviour
         {
             Debug.LogWarning("No NavMeshSurface found; the avatar will have no NavMesh to navigate.");
         }
+
+        // 6. PUBLISH GRID + READINESS so spawners/calibration/minimap can initialize.
+        OccupiedCells = occ;
+        Cols = cols;
+        Rows = rows;
+        cellWorld = cell;
+        IsMapReady = true;
+        OnMapReady?.Invoke();
+    }
+
+    /// <summary>World-space center (y = 0) of a grid cell, matching the wall spawn math.</summary>
+    public Vector3 CellToWorld(int cx, int cy)
+    {
+        return new Vector3(
+            cx * cellWorld + cellWorld / 2f - offsetX,
+            0f,
+            cy * cellWorld + cellWorld / 2f - offsetZ);
+    }
+
+    /// <summary>
+    /// Finds an open spawn position: the free cell nearest the grid center whose
+    /// Chebyshev neighborhood of <paramref name="clearanceCells"/> is also free,
+    /// confirmed against the baked NavMesh. Robust to map swaps - no manual
+    /// transform calibration needed.
+    /// </summary>
+    public bool TryFindClearPosition(out Vector3 worldPos, int clearanceCells = 2)
+    {
+        worldPos = Vector3.zero;
+        if (OccupiedCells == null) return false;
+
+        int bestX = -1, bestY = -1;
+        float bestDist = float.MaxValue;
+        float midX = Cols / 2f, midY = Rows / 2f;
+
+        for (int x = 0; x < Cols; x++)
+        {
+            for (int y = 0; y < Rows; y++)
+            {
+                if (!IsNeighborhoodClear(x, y, clearanceCells)) continue;
+                float dx = x - midX, dy = y - midY;
+                float d = dx * dx + dy * dy;
+                if (d < bestDist) { bestDist = d; bestX = x; bestY = y; }
+            }
+        }
+
+        if (bestX < 0) return false;
+
+        Vector3 candidate = CellToWorld(bestX, bestY);
+        if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, cellWorld * 2f, NavMesh.AllAreas))
+        {
+            worldPos = hit.position;
+            return true;
+        }
+        return false;
+    }
+
+    private bool IsNeighborhoodClear(int cx, int cy, int radius)
+    {
+        for (int x = cx - radius; x <= cx + radius; x++)
+        {
+            for (int y = cy - radius; y <= cy + radius; y++)
+            {
+                if (x < 0 || y < 0 || x >= Cols || y >= Rows) return false;
+                if (OccupiedCells[x, y]) return false;
+            }
+        }
+        return true;
     }
 
     /// <summary>

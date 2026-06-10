@@ -1,13 +1,13 @@
 using UnityEngine;
-using UnityEngine.AI;
 using UnityEngine.UI;
 using System.Collections;
 
 /// <summary>
-/// Explorer Mode controller. Two actions only: move forward 3 m, and turn right 45 deg
-/// (clockwise). The tablet is a frontend client: these map to the future cmd_vel publish
-/// points (ExecuteForward / ExecuteTurnRight). For now they drive the avatar locally so
-/// the behaviour is testable without ROS.
+/// Explorer Mode controller. Discrete actions (move forward 3 m, turn 45 deg) that
+/// are issued exclusively through the WheelchairStateBridge - forward becomes a
+/// relative navigation goal, turns become time-sliced cmd_vel-style angular
+/// velocity. This component never touches the NavMeshAgent directly, so the ROS 2
+/// swap later this summer only flips the bridge's mode.
 ///
 /// Three input strategies (BCI / switch-access friendly):
 ///   - DirectTwoKey: one key = forward, one key = turn-right (immediate).
@@ -30,19 +30,17 @@ public class ExplorerUIController : MonoBehaviour
     public SwitchScanner scanner = new SwitchScanner();
 
     [Header("Target")]
-    [Tooltip("The wheelchair's NavMeshAgent. Auto-found by name if left empty.")]
-    public NavMeshAgent agent;
+    [Tooltip("The wheelchair's state bridge. Auto-found by avatar name if left empty.")]
+    public WheelchairStateBridge bridge;
     public string avatarName = "Wheelchair_Avatar";
 
     [Header("Motion")]
     [Tooltip("Distance per forward command, in meters.")]
     public float forwardDistance = 3f;
-    [Tooltip("Degrees rotated clockwise per turn-right command.")]
+    [Tooltip("Degrees rotated per turn command (clockwise for turn-right).")]
     public float turnAngle = 45f;
     [Tooltip("Seconds the turn animation takes.")]
     public float turnDuration = 0.25f;
-    [Tooltip("Search radius when snapping a step/warp onto the NavMesh.")]
-    public float navSampleRadius = 8f;
 
     [Header("Highlight (scan strategies)")]
     public Button forwardButton;
@@ -55,15 +53,13 @@ public class ExplorerUIController : MonoBehaviour
 
     void Start()
     {
-        if (agent == null)
+        if (bridge == null)
         {
             var avatar = GameObject.Find(avatarName);
-            if (avatar != null) agent = avatar.GetComponent<NavMeshAgent>();
+            if (avatar != null) bridge = avatar.GetComponent<WheelchairStateBridge>();
         }
-        if (agent == null)
-            Debug.LogWarning("[ExplorerUIController] No NavMeshAgent found; controls will do nothing.");
-        else
-            EnsureOnNavMesh();
+        if (bridge == null)
+            Debug.LogWarning("[ExplorerUIController] No WheelchairStateBridge found; controls will do nothing.");
 
         // Option order: 0 = Forward, 1 = Turn-Right.
         options = new Button[] { forwardButton, turnRightButton };
@@ -91,58 +87,49 @@ public class ExplorerUIController : MonoBehaviour
         else if (selected == 1) ExecuteTurnRight();
     }
 
-    // --- Actions (future cmd_vel publish points) ---
+    // --- Actions (route through the bridge -> Nav2 goal / cmd_vel later) ---
 
     public void OnMoveForwardClicked() { ExecuteForward(); }   // kept for button onClick
     public void OnTurnRightClicked()   { ExecuteTurnRight(); }
 
     public void ExecuteForward()
     {
-        if (!IsReady()) return;
-        Vector3 target = agent.transform.position + agent.transform.forward * forwardDistance;
-        if (NavMesh.SamplePosition(target, out NavMeshHit hit, navSampleRadius, NavMesh.AllAreas))
-            agent.SetDestination(hit.position);
+        if (bridge == null || isTurning) return;
+        Transform t = bridge.transform;
+        bridge.SendNavigationGoal(t.position + t.forward * forwardDistance);
     }
 
     public void ExecuteTurnRight()
     {
-        if (agent == null || isTurning) return;
-        agent.ResetPath();              // stop any forward motion before reorienting
-        StartCoroutine(TurnRoutine(turnAngle));
+        ExecuteTurn(turnAngle);
+    }
+
+    private void ExecuteTurn(float degrees)
+    {
+        if (bridge == null || isTurning) return;
+        bridge.StopMotion();            // stop any forward motion before reorienting
+        StartCoroutine(TurnRoutine(degrees));
     }
 
     IEnumerator TurnRoutine(float degrees)
     {
         isTurning = true;
-        Transform t = agent.transform;
-        Quaternion from = t.rotation;
-        Quaternion to = from * Quaternion.Euler(0f, degrees, 0f); // +Y = clockwise from above
-        float elapsed = 0f;
-        while (elapsed < turnDuration)
+        float remaining = Mathf.Abs(degrees);
+        float sign = Mathf.Sign(degrees); // +Y = clockwise from above
+        float speed = Mathf.Abs(degrees) / Mathf.Max(0.01f, turnDuration);
+        while (remaining > 0f)
         {
-            elapsed += Time.deltaTime;
-            t.rotation = Quaternion.Slerp(from, to, Mathf.Clamp01(elapsed / turnDuration));
+            float step = Mathf.Min(speed * Time.deltaTime, remaining);
+            // The bridge integrates velocity over deltaTime, so feed it the rate
+            // that produces exactly `step` degrees this frame (lands on 45 exactly).
+            bridge.SendLowLevelVelocity(0f, sign * step / Mathf.Max(Time.deltaTime, 1e-5f));
+            remaining -= step;
             yield return null;
         }
-        t.rotation = to;
         isTurning = false;
     }
 
     // --- Helpers ---
-
-    void EnsureOnNavMesh()
-    {
-        if (agent == null || agent.isOnNavMesh) return;
-        if (NavMesh.SamplePosition(agent.transform.position, out NavMeshHit hit, navSampleRadius, NavMesh.AllAreas))
-            agent.Warp(hit.position);
-    }
-
-    bool IsReady()
-    {
-        if (agent == null) return false;
-        EnsureOnNavMesh();
-        return agent.isOnNavMesh;
-    }
 
     void UpdateHighlight(int activeIndex)
     {
