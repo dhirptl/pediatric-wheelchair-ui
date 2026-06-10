@@ -44,8 +44,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e938f2ac5f6b4025b2da70fe3e49697, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  mapFileName: mymap_test4.png
   occupancyGrid: {fileID: 2800000, guid: c8dfe3e6e6c424f76b64a2d7980bb24e, type: 3}
   wallPrefab: {fileID: 1819528886160818610, guid: 10bbe1c68ed444d4e89d5abcc5a8da04,
     type: 3}
   wallHeight: 10
+  floorMaterial: {fileID: 2100000, guid: 0370180d9fd9b4735949d8a58b60397d, type: 2}
+  cellSize: 2
+  wallThreshold: 0.5
+  minNeighbors: 1
   navMeshSurface: {fileID: 0}
