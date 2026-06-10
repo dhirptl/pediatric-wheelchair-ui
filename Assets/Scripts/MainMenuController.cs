@@ -59,6 +59,7 @@ public class MainMenuController : MonoBehaviour
 
     public void OnExplorerModeClicked()
     {
+        GamePrefs.SetString(GamePrefs.GameMode, "Explorer");
         SceneManager.LoadScene("MapScene");
     }
 
@@ -71,8 +72,8 @@ public class MainMenuController : MonoBehaviour
 
     public void OnDestinationSelected(string targetName)
     {
-        PlayerPrefs.SetString("Destination", targetName);
-        PlayerPrefs.Save();
+        GamePrefs.SetString(GamePrefs.GameMode, "MagicTravel");
+        GamePrefs.SetString(GamePrefs.Destination, targetName);
         SceneManager.LoadScene("MapScene");
     }
 }

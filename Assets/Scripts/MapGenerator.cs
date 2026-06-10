@@ -43,6 +43,8 @@ public class MapGenerator : MonoBehaviour
     public bool[,] OccupiedCells { get; private set; }
     public int Cols { get; private set; }
     public int Rows { get; private set; }
+    public float WorldWidth => Cols * cellWorld;
+    public float WorldHeight => Rows * cellWorld;
 
     private int cellWorld;   // cell edge length in world units (== clamped cellSize)
     private float offsetX, offsetZ;

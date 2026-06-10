@@ -34,7 +34,14 @@ public class RoomCalibrationManager : MonoBehaviour
     [Tooltip("Search radius when snapping a marker onto the NavMesh.")]
     public float snapSampleRadius = 15f;
 
+    [Header("Calibration UI")]
+    [Tooltip("HUD text shown while waiting for the admin to tap the mini-map.")]
+    public TMPro.TextMeshProUGUI promptText;
+
+    public bool IsCalibrating => !string.IsNullOrEmpty(pendingRoom);
+
     private readonly Dictionary<string, Vector3> calibrated = new Dictionary<string, Vector3>();
+    private string pendingRoom;
 
     void Awake()
     {
@@ -42,8 +49,19 @@ public class RoomCalibrationManager : MonoBehaviour
         Load();
     }
 
+    void OnEnable()
+    {
+        MiniMapClickHandler.OnMiniMapWorldClick += HandleMiniMapClick;
+    }
+
+    void OnDisable()
+    {
+        MiniMapClickHandler.OnMiniMapWorldClick -= HandleMiniMapClick;
+    }
+
     void Start()
     {
+        if (promptText != null) promptText.gameObject.SetActive(false);
         if (MapGenerator.IsMapReady) SnapTargetsToNavMesh();
         else MapGenerator.OnMapReady += SnapTargetsToNavMesh;
     }
@@ -53,6 +71,32 @@ public class RoomCalibrationManager : MonoBehaviour
         MapGenerator.OnMapReady -= SnapTargetsToNavMesh;
         if (Instance == this) Instance = null;
     }
+
+    /// <summary>Arms the mini-map: the next tap on it drops this room's destination node.</summary>
+    public void BeginCalibration(string roomName)
+    {
+        pendingRoom = roomName;
+        if (promptText != null)
+        {
+            promptText.text = "ADMIN: tap the mini-map to place " + PrettyName(roomName);
+            promptText.gameObject.SetActive(true);
+        }
+        Debug.Log("[RoomCalibration] Waiting for a mini-map tap to place '" + roomName + "'...");
+    }
+
+    private void HandleMiniMapClick(Vector3 worldPos)
+    {
+        if (!IsCalibrating) return;
+        if (SetRoomPosition(pendingRoom, worldPos))
+        {
+            pendingRoom = null;
+            if (promptText != null) promptText.gameObject.SetActive(false);
+        }
+        // On a failed sample (clicked inside a wall) stay armed so the admin can retry.
+    }
+
+    private static string PrettyName(string roomName)
+        => roomName.StartsWith("Target_") ? roomName.Substring("Target_".Length) : roomName;
 
     /// <summary>Calibrated coordinates first, snapped scene marker as fallback.</summary>
     public bool TryGetRoomPosition(string roomName, out Vector3 pos)
