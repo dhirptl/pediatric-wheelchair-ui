@@ -1,11 +1,13 @@
 using System;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Owns the active control mode (Magic Travel vs Explorer) and the pause/settings
 /// overlay. Mode changes toggle the matching HUD panels, stop any in-flight
 /// motion through the bridge, and persist across sessions via PlayerPrefs.
+///
+/// The game boots straight into the environment (no separate Main Menu scene);
+/// this pause/settings overlay is the master mode switcher.
 /// </summary>
 public class GameModeManager : MonoBehaviour
 {
@@ -64,12 +66,6 @@ public class GameModeManager : MonoBehaviour
     public void ClosePause()
     {
         if (pauseOverlay != null) pauseOverlay.SetActive(false);
-    }
-
-    public void QuitToMenu()
-    {
-        GamePrefs.DeleteKey(GamePrefs.Destination);
-        SceneManager.LoadScene("MainMenu");
     }
 
     private void Apply()
