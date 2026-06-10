@@ -4,8 +4,12 @@ using UnityEngine.UI;
 /// <summary>
 /// Programmatic selection feedback - no Animator assets. While highlighted, the
 /// button smoothly scales up and its Outline border pulses between two colors.
-/// All references cached; zero per-frame allocation.
+/// If a ButtonJuice sits on the same object it pops on highlight (5% punch +
+/// soft sound) and its transient punch is folded into the scale here, so the
+/// two effects compose instead of fighting. All references cached; zero
+/// per-frame allocation.
 /// </summary>
+[RequireComponent(typeof(RectTransform))]
 public class ButtonHighlighter : MonoBehaviour
 {
     [Tooltip("Scale multiplier while highlighted.")]
@@ -18,6 +22,7 @@ public class ButtonHighlighter : MonoBehaviour
     public Color pulseB = Color.white;
 
     private Outline outline;
+    private ButtonJuice juice;
     private Vector3 baseScale;
     private Color baseOutlineColor;
     private bool highlighted;
@@ -25,6 +30,7 @@ public class ButtonHighlighter : MonoBehaviour
     void Awake()
     {
         outline = GetComponent<Outline>();
+        juice = GetComponent<ButtonJuice>();
         baseScale = transform.localScale;
         if (outline != null) baseOutlineColor = outline.effectColor;
     }
@@ -34,13 +40,15 @@ public class ButtonHighlighter : MonoBehaviour
         if (highlighted == on) return;
         highlighted = on;
         if (!on && outline != null) outline.effectColor = baseOutlineColor;
+        if (on && juice != null) juice.Pop();   // soft pop the moment it becomes highlighted
     }
 
     void Update()
     {
         float target = highlighted ? targetScale : 1f;
+        float punch = juice != null ? juice.CurrentPunch : 1f;
         transform.localScale = Vector3.Lerp(
-            transform.localScale, baseScale * target, Time.unscaledDeltaTime * lerpSpeed);
+            transform.localScale, baseScale * target * punch, Time.unscaledDeltaTime * lerpSpeed);
 
         if (highlighted && outline != null)
         {

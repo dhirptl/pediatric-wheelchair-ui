@@ -8,6 +8,11 @@ using UnityEngine.UI;
 /// per ThemeDefinition, cloned from an inactive template button: BUY deducts
 /// points, EQUIP re-skins the live map instantly. Labels refresh whenever the
 /// player's points change.
+///
+/// The cards are built at runtime, so this screen owns its own switch-access
+/// scanning (Space cycles cards + Close, Enter selects) rather than a generic
+/// PanelScanController. It grabs scan focus while open so the two keys drive the
+/// shop instead of the Explorer command panel.
 /// </summary>
 public class ThemeShopController : MonoBehaviour
 {
@@ -15,12 +20,22 @@ public class ThemeShopController : MonoBehaviour
     public Button templateButton;
     public Transform listParent;
 
+    [Header("Switch-access scanning")]
+    [Tooltip("Closes the shop; appended to the end of the scan ring.")]
+    public Button closeButton;
+    public SwitchScanner scanner = new SwitchScanner();
+    [Tooltip("Highlight scale for cards without a ButtonHighlighter.")]
+    public float fallbackScale = 1.08f;
+
     private readonly List<Button> cards = new List<Button>();
     private readonly List<TextMeshProUGUI> cardLabels = new List<TextMeshProUGUI>();
+    private Button[] scanRing;          // cards + closeButton
+    private int scannerLast = -1;
 
     void Start()
     {
         BuildCards();
+        BuildScanRing();
         if (ScoreManager.Instance != null)
             ScoreManager.Instance.OnPointsChanged += _ => RefreshLabels();
         if (panel != null) panel.SetActive(false);
@@ -30,11 +45,63 @@ public class ThemeShopController : MonoBehaviour
     {
         if (panel != null) panel.SetActive(true);
         RefreshLabels();
+        ScanFocus.Push(this);
+        scanner.Reset();
+        scannerLast = scanner.CurrentIndex;
+        RefreshHighlights();
     }
 
     public void Close()
     {
+        ClearHighlights();
+        ScanFocus.Pop(this);
         if (panel != null) panel.SetActive(false);
+    }
+
+    void Update()
+    {
+        if (scanRing == null || scanRing.Length == 0) return;
+        if (!ScanFocus.IsTop(this)) return;
+
+        int selected = scanner.Tick(scanRing.Length);
+        if (scanner.CurrentIndex != scannerLast)
+        {
+            scannerLast = scanner.CurrentIndex;
+            RefreshHighlights();
+        }
+        if (selected >= 0)
+        {
+            Button btn = scanRing[selected];
+            if (btn != null && btn.interactable) btn.onClick.Invoke();
+        }
+    }
+
+    private void BuildScanRing()
+    {
+        var ring = new List<Button>(cards);
+        if (closeButton != null) ring.Add(closeButton);
+        scanRing = ring.ToArray();
+    }
+
+    private void RefreshHighlights()
+    {
+        for (int i = 0; i < scanRing.Length; i++) SetHighlight(i, i == scanner.CurrentIndex);
+    }
+
+    private void ClearHighlights()
+    {
+        if (scanRing == null) return;
+        for (int i = 0; i < scanRing.Length; i++) SetHighlight(i, false);
+    }
+
+    private void SetHighlight(int i, bool on)
+    {
+        Button btn = scanRing[i];
+        if (btn == null) return;
+        var hl = btn.GetComponent<ButtonHighlighter>();
+        if (hl != null) { hl.SetHighlighted(on); return; }
+        float s = on ? fallbackScale : 1f;
+        btn.transform.localScale = new Vector3(s, s, 1f);
     }
 
     private void BuildCards()

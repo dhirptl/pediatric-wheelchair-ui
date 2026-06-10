@@ -6,6 +6,9 @@ using UnityEngine.AI;
 /// set, sampling evenly spaced points between the path corners. Coins are
 /// pre-instantiated (no runtime Instantiate churn) and registered with the
 /// ScoreManager, which handles distance-based pickup.
+///
+/// Coins are a Magic Travel reward only: spawning is gated to MagicTravel mode,
+/// and switching to Explorer (driving practice) despawns any active coins.
 /// </summary>
 public class CoinSpawner : MonoBehaviour
 {
@@ -21,6 +24,7 @@ public class CoinSpawner : MonoBehaviour
     private Coin[] pool;
     private NavMeshPath path;
     private readonly Vector3[] corners = new Vector3[64];
+    private GameModeManager modeManager;
 
     void Start()
     {
@@ -33,6 +37,10 @@ public class CoinSpawner : MonoBehaviour
             pool[i] = go.GetComponent<Coin>();
             go.SetActive(false);
         }
+
+        // Instance is set in GameModeManager.Awake, so it is ready by Start.
+        modeManager = GameModeManager.Instance;
+        if (modeManager != null) modeManager.OnModeChanged += HandleModeChanged;
     }
 
     void OnEnable()
@@ -45,10 +53,26 @@ public class CoinSpawner : MonoBehaviour
         WheelchairStateBridge.OnNavigationGoalSet -= HandleGoal;
     }
 
+    void OnDestroy()
+    {
+        if (modeManager != null) modeManager.OnModeChanged -= HandleModeChanged;
+    }
+
+    private void HandleModeChanged(GameModeManager.Mode mode)
+    {
+        // Leaving Magic Travel: clear the trail so Explorer stays coin-free.
+        if (mode != GameModeManager.Mode.MagicTravel) DespawnAll();
+    }
+
     private void HandleGoal(Vector3 goal)
     {
         if (pool == null) return;
         DespawnAll();
+
+        // Coins are a Magic Travel reward only - no coins during driving practice.
+        if (GameModeManager.Instance == null ||
+            GameModeManager.Instance.CurrentMode != GameModeManager.Mode.MagicTravel)
+            return;
 
         var bridge = WheelchairStateBridge.Instance;
         if (bridge == null) return;
