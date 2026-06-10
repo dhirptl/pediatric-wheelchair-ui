@@ -3,31 +3,43 @@ using UnityEngine.UI;
 using System.Collections;
 
 /// <summary>
-/// Explorer Mode controller. Discrete actions (move forward 3 m, turn 45 deg) that
-/// are issued exclusively through the WheelchairStateBridge - forward becomes a
-/// relative navigation goal, turns become time-sliced cmd_vel-style angular
-/// velocity. This component never touches the NavMeshAgent directly, so the ROS 2
-/// swap later this summer only flips the bridge's mode.
+/// Explorer Mode controller. Discrete actions (move forward, turn left/right,
+/// stop) issued exclusively through the WheelchairStateBridge - forward becomes
+/// a relative navigation goal, turns become time-sliced cmd_vel-style angular
+/// velocity - so the ROS 2 swap later only flips the bridge's mode.
 ///
-/// Three input strategies (BCI / switch-access friendly):
-///   - DirectTwoKey: one key = forward, one key = turn-right (immediate).
-///   - ToggleSelect: one key cycles the highlighted action, one key executes it.
-///   - TimeScan:     the highlight auto-advances on a timer; a single key executes it.
-/// On-screen buttons remain and call ExecuteForward / ExecuteTurnRight too.
+/// Three accessibility selection strategies (BCI / switch-access friendly):
+///   1. DirectKeys:        Space cycles the dashboard buttons, Enter executes.
+///   2. GridToggleSelect:  two-stage row/column scanning over a simplified grid
+///                         menu - Space cycles rows, Enter enters the row, Space
+///                         cycles its cells, Enter executes.
+///   3. TimeScan:          the dashboard highlight auto-advances every 20 s
+///                         (Forward first, then Turn Right); one designated key
+///                         executes whatever is highlighted.
+/// On-screen buttons stay tappable in every strategy.
 /// </summary>
 public class ExplorerUIController : MonoBehaviour
 {
-    public enum ExplorerStrategy { DirectTwoKey, ToggleSelect, TimeScan }
+    public enum ExplorerStrategy { DirectKeys, GridToggleSelect, TimeScan }
 
     [Header("Strategy")]
-    public ExplorerStrategy strategy = ExplorerStrategy.DirectTwoKey;
+    public ExplorerStrategy strategy = ExplorerStrategy.DirectKeys;
 
-    [Header("Direct two-key strategy")]
-    public KeyCode forwardKey = KeyCode.UpArrow;
-    public KeyCode turnRightKey = KeyCode.RightArrow;
+    [Header("Scanning (keys, dwell, cooldown)")]
+    public ScanGroup scanGroup = new ScanGroup();
 
-    [Header("Toggle/Time scan strategies")]
-    public SwitchScanner scanner = new SwitchScanner();
+    [Header("Panels")]
+    public GameObject dashboardPanel;
+    public GameObject gridMenuPanel;
+
+    [Header("Dashboard buttons")]
+    public Button forwardButton;
+    public Button turnRightButton;
+    public Button turnLeftButton;
+
+    [Header("Grid menu buttons (row-major; order must match gridActions)")]
+    public Button[] gridButtons;
+    public int gridColumns = 2;
 
     [Header("Target")]
     [Tooltip("The wheelchair's state bridge. Auto-found by avatar name if left empty.")]
@@ -37,18 +49,18 @@ public class ExplorerUIController : MonoBehaviour
     [Header("Motion")]
     [Tooltip("Distance per forward command, in meters.")]
     public float forwardDistance = 3f;
-    [Tooltip("Degrees rotated per turn command (clockwise for turn-right).")]
+    [Tooltip("Degrees rotated per turn command.")]
     public float turnAngle = 45f;
     [Tooltip("Seconds the turn animation takes.")]
     public float turnDuration = 0.25f;
 
-    [Header("Highlight (scan strategies)")]
-    public Button forwardButton;
-    public Button turnRightButton;
-    [Tooltip("Scale applied to the currently highlighted button.")]
-    public float highlightScale = 1.12f;
+    private enum Command { Forward, TurnRight, TurnLeft, Stop }
 
-    private Button[] options;
+    // Scan order per spec: TimeScan highlights Forward first, then Turn Right.
+    private static readonly Command[] dashboardActions = { Command.Forward, Command.TurnRight, Command.TurnLeft };
+    private static readonly Command[] gridActions = { Command.Forward, Command.TurnLeft, Command.TurnRight, Command.Stop };
+
+    private Command[] currentActions;
     private bool isTurning;
 
     void Start()
@@ -61,52 +73,87 @@ public class ExplorerUIController : MonoBehaviour
         if (bridge == null)
             Debug.LogWarning("[ExplorerUIController] No WheelchairStateBridge found; controls will do nothing.");
 
-        // Option order: 0 = Forward, 1 = Turn-Right.
-        options = new Button[] { forwardButton, turnRightButton };
-        scanner.Reset();
-        UpdateHighlight(strategy == ExplorerStrategy.DirectTwoKey ? -1 : scanner.CurrentIndex);
+        scanGroup.OnOptionSelected += HandleSelected;
+        ApplyStrategy();
+    }
+
+    /// <summary>Switches strategy at runtime (wired to future settings UI; index = enum order).</summary>
+    public void SetStrategy(int strategyIndex)
+    {
+        strategy = (ExplorerStrategy)strategyIndex;
+        ApplyStrategy();
+    }
+
+    private void ApplyStrategy()
+    {
+        bool grid = strategy == ExplorerStrategy.GridToggleSelect;
+        if (dashboardPanel != null) dashboardPanel.SetActive(!grid);
+        if (gridMenuPanel != null) gridMenuPanel.SetActive(grid);
+
+        if (grid)
+        {
+            scanGroup.options = gridButtons;
+            scanGroup.gridCols = gridColumns;
+            scanGroup.scanner.mode = SwitchScanner.Mode.ToggleSelect;
+            currentActions = gridActions;
+        }
+        else
+        {
+            scanGroup.options = new[] { forwardButton, turnRightButton, turnLeftButton };
+            scanGroup.gridCols = 0;
+            scanGroup.scanner.mode = strategy == ExplorerStrategy.TimeScan
+                ? SwitchScanner.Mode.TimeScan
+                : SwitchScanner.Mode.ToggleSelect;
+            currentActions = dashboardActions;
+        }
+        scanGroup.Activate();
     }
 
     void Update()
     {
-        if (strategy == ExplorerStrategy.DirectTwoKey)
-        {
-            if (Input.GetKeyDown(forwardKey)) ExecuteForward();
-            if (Input.GetKeyDown(turnRightKey)) ExecuteTurnRight();
-            return;
-        }
-
-        // ToggleSelect / TimeScan
-        scanner.mode = (strategy == ExplorerStrategy.TimeScan)
-            ? SwitchScanner.Mode.TimeScan
-            : SwitchScanner.Mode.ToggleSelect;
-
-        int selected = scanner.Tick(2);
-        UpdateHighlight(scanner.CurrentIndex);
-        if (selected == 0) ExecuteForward();
-        else if (selected == 1) ExecuteTurnRight();
+        scanGroup.Tick();
     }
+
+    private void HandleSelected(int index)
+    {
+        if (currentActions == null || index >= currentActions.Length) return;
+        Execute(currentActions[index]);
+    }
+
+    // --- Button onClick entry points (touch input path) ---
+
+    public void OnMoveForwardClicked() { Execute(Command.Forward); }
+    public void OnTurnRightClicked()   { Execute(Command.TurnRight); }
+    public void OnTurnLeftClicked()    { Execute(Command.TurnLeft); }
+    public void OnStopClicked()        { Execute(Command.Stop); }
 
     // --- Actions (route through the bridge -> Nav2 goal / cmd_vel later) ---
 
-    public void OnMoveForwardClicked() { ExecuteForward(); }   // kept for button onClick
-    public void OnTurnRightClicked()   { ExecuteTurnRight(); }
-
-    public void ExecuteForward()
+    private void Execute(Command command)
     {
-        if (bridge == null || isTurning) return;
-        Transform t = bridge.transform;
-        bridge.SendNavigationGoal(t.position + t.forward * forwardDistance);
-    }
-
-    public void ExecuteTurnRight()
-    {
-        ExecuteTurn(turnAngle);
+        if (bridge == null) return;
+        switch (command)
+        {
+            case Command.Forward:
+                if (isTurning) return;
+                Transform t = bridge.transform;
+                bridge.SendNavigationGoal(t.position + t.forward * forwardDistance);
+                break;
+            case Command.TurnRight:
+                ExecuteTurn(turnAngle);
+                break;
+            case Command.TurnLeft:
+                ExecuteTurn(-turnAngle);
+                break;
+            case Command.Stop:
+                bridge.StopMotion();
+                break;
+        }
     }
 
     private void ExecuteTurn(float degrees)
     {
-        if (bridge == null || isTurning) return;
+        if (isTurning) return;
         bridge.StopMotion();            // stop any forward motion before reorienting
         StartCoroutine(TurnRoutine(degrees));
     }
@@ -127,18 +174,5 @@ public class ExplorerUIController : MonoBehaviour
             yield return null;
         }
         isTurning = false;
-    }
-
-    // --- Helpers ---
-
-    void UpdateHighlight(int activeIndex)
-    {
-        if (options == null) return;
-        for (int i = 0; i < options.Length; i++)
-        {
-            if (options[i] == null) continue;
-            float s = (i == activeIndex) ? highlightScale : 1f;
-            options[i].transform.localScale = new Vector3(s, s, 1f);
-        }
     }
 }

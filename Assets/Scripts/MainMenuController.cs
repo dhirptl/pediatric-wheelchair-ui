@@ -18,41 +18,36 @@ public class MainMenuController : MonoBehaviour
     [Header("Screen 2: Destination Cards")]
     public Button[] destinationButtons;
 
-    private Button[] currentActiveButtons;
+    private ScanGroup modeGroup;
+    private ScanGroup destinationGroup;
+    private ScanGroup activeGroup;
 
     void Start()
     {
+        // Both groups share the serialized scanner so its keys/dwell settings
+        // apply to every screen; Activate() resets state between screens.
+        modeGroup = new ScanGroup { options = modeButtons, scanner = scanner };
+        destinationGroup = new ScanGroup { options = destinationButtons, scanner = scanner };
+        modeGroup.OnOptionSelected += i => modeButtons[i].onClick.Invoke();
+        destinationGroup.OnOptionSelected += i => destinationButtons[i].onClick.Invoke();
+
         modeSelectionPanel.SetActive(true);
         destinationPanel.SetActive(false);
-        SetActiveButtons(modeButtons);
+        SetActiveGroup(modeGroup);
     }
 
     void Update()
     {
-        if (currentActiveButtons == null || currentActiveButtons.Length == 0) return;
-
-        int selected = scanner.Tick(currentActiveButtons.Length);
-        HighlightCurrentButton();
-        if (selected >= 0)
-            currentActiveButtons[selected].onClick.Invoke();
+        activeGroup?.Tick();
     }
 
-    private void SetActiveButtons(Button[] buttons)
+    private void SetActiveGroup(ScanGroup group)
     {
-        currentActiveButtons = buttons;
-        // Reset() also arms the input cooldown, so the key that selected the previous
-        // screen doesn't immediately trigger something on the new one.
-        scanner.Reset();
-        HighlightCurrentButton();
-    }
-
-    private void HighlightCurrentButton()
-    {
-        if (currentActiveButtons != null && currentActiveButtons.Length > 0)
-        {
-            int i = Mathf.Clamp(scanner.CurrentIndex, 0, currentActiveButtons.Length - 1);
-            currentActiveButtons[i].Select();
-        }
+        // Activate() also arms the input cooldown, so the key that selected the
+        // previous screen doesn't immediately trigger something on the new one.
+        activeGroup?.Deactivate();
+        activeGroup = group;
+        group.Activate();
     }
 
     // --- BUTTON CLICK FUNCTIONS ---
@@ -67,7 +62,7 @@ public class MainMenuController : MonoBehaviour
     {
         modeSelectionPanel.SetActive(false);
         destinationPanel.SetActive(true);
-        SetActiveButtons(destinationButtons);
+        SetActiveGroup(destinationGroup);
     }
 
     public void OnDestinationSelected(string targetName)
