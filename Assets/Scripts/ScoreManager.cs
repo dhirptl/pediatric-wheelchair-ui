@@ -17,6 +17,13 @@ public class ScoreManager : MonoBehaviour
     [Tooltip("HUD points label (TopBar/Txt_Points).")]
     public TMPro.TextMeshProUGUI pointsLabel;
 
+    [Header("Sound")]
+    [Tooltip("Sparkly chime on coin collection (one central source, no per-coin audio).")]
+    public AudioClip collectClip;
+    [Range(0f, 1f)] public float collectVolume = 0.7f;
+
+    private AudioSource sfx;
+
     public int CurrentPoints { get; private set; }
     public event Action<int> OnPointsChanged;
 
@@ -26,6 +33,11 @@ public class ScoreManager : MonoBehaviour
     {
         Instance = this;
         CurrentPoints = GamePrefs.GetInt(GamePrefs.CurrentPoints);
+
+        sfx = GetComponent<AudioSource>();
+        if (sfx == null) sfx = gameObject.AddComponent<AudioSource>();
+        sfx.playOnAwake = false;
+        sfx.spatialBlend = 0f;          // 2D UI sound
     }
 
     void OnDestroy()
@@ -68,6 +80,7 @@ public class ScoreManager : MonoBehaviour
             {
                 coin.Collect();
                 activeCoins.RemoveAt(i);
+                if (collectClip != null) sfx.PlayOneShot(collectClip, collectVolume);
                 AddPoints(1);
             }
         }

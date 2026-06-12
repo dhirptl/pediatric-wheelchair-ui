@@ -30,14 +30,23 @@ public class PathVisualizer : MonoBehaviour
 
     void Awake()
     {
-        line = GetComponent<LineRenderer>();
+        EnsureInit();
         line.widthMultiplier = width;
         if (lineMaterial != null) line.material = lineMaterial;
         line.textureMode = LineTextureMode.Tile;
         line.numCapVertices = 4;
         line.numCornerVertices = 4;
         line.positionCount = 0;
-        path = new NavMeshPath();
+    }
+
+    /// <summary>
+    /// ShowPreview/ClearPreview can arrive from ExplorerController.OnEnable before
+    /// this component's Awake at scene load, so initialize lazily.
+    /// </summary>
+    private void EnsureInit()
+    {
+        if (line == null) line = GetComponent<LineRenderer>();
+        if (path == null) path = new NavMeshPath();
     }
 
     void OnEnable()
@@ -59,6 +68,24 @@ public class PathVisualizer : MonoBehaviour
         Repath(transform.position);
     }
 
+    /// <summary>
+    /// Draws the route to a candidate goal BEFORE any motion is commanded (the
+    /// Explorer wind-up preview). If the goal is then committed, HandleGoal fires
+    /// with the same position and the line continues seamlessly.
+    /// </summary>
+    public void ShowPreview(Vector3 previewGoal)
+    {
+        goal = previewGoal;
+        hasGoal = true;
+        Repath(transform.position);
+    }
+
+    /// <summary>Clears a preview line (a committed goal re-arms it via HandleGoal).</summary>
+    public void ClearPreview()
+    {
+        Clear();
+    }
+
     private void HandlePose(Vector3 pose)
     {
         if (!hasGoal) return;
@@ -72,6 +99,7 @@ public class PathVisualizer : MonoBehaviour
 
     private void Repath(Vector3 from)
     {
+        EnsureInit();
         nextRepathTime = Time.time + repathInterval;
         if (!NavMesh.CalculatePath(from, goal, NavMesh.AllAreas, path))
         {
@@ -87,6 +115,7 @@ public class PathVisualizer : MonoBehaviour
     private void Clear()
     {
         hasGoal = false;
-        line.positionCount = 0;
+        EnsureInit();
+        if (line != null) line.positionCount = 0;
     }
 }

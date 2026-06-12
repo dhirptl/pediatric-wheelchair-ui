@@ -23,15 +23,20 @@ public class SwitchScanner
     [Tooltip("Key that selects the highlighted option (both modes).")]
     public KeyCode selectKey = KeyCode.Return;
 
-    [Tooltip("Seconds each option stays highlighted before auto-advancing (TimeScan only).")]
-    public float dwellSeconds = 20f;
+    [Tooltip("Seconds each option stays highlighted before auto-advancing (TimeScan only). Tune per child.")]
+    public float dwellSeconds = 8f;
     [Tooltip("Minimum seconds between accepted key presses (debounce).")]
     public float inputCooldown = 0.5f;
+    [Tooltip("Remember a key pressed during the cooldown and apply it the moment the window reopens, so no press is ever silently lost.")]
+    public bool bufferDuringCooldown = true;
 
     private int index;
     private float nextInputTime;
     private float nextAdvanceTime;
     private bool started;
+    private SwitchKey bufferedKey;
+
+    private enum SwitchKey { None, Toggle, Select }
 
     // Two-stage grid scanning state (TickGrid only).
     private int gridRow;
@@ -50,9 +55,47 @@ public class SwitchScanner
         gridRow = 0;
         gridCol = 0;
         inColumnStage = false;
+        bufferedKey = SwitchKey.None;
         nextInputTime = Time.time + inputCooldown;
         nextAdvanceTime = Time.time + dwellSeconds;
         started = true;
+    }
+
+    /// <summary>
+    /// Reads the switch keys through the debounce window. A press that lands
+    /// during the cooldown is latched (first press wins) and delivered the moment
+    /// the window reopens, instead of being silently dropped - a swallowed press
+    /// reads as "my button is broken" to a child. Re-arms the cooldown on delivery.
+    /// </summary>
+    private SwitchKey ReadKey(bool allowToggle)
+    {
+        bool toggleDown = allowToggle && Input.GetKeyDown(toggleKey);
+        bool selectDown = Input.GetKeyDown(selectKey);
+
+        if (Time.time < nextInputTime)
+        {
+            if (bufferDuringCooldown && bufferedKey == SwitchKey.None)
+            {
+                if (toggleDown) bufferedKey = SwitchKey.Toggle;
+                else if (selectDown) bufferedKey = SwitchKey.Select;
+            }
+            return SwitchKey.None;
+        }
+
+        if (bufferedKey != SwitchKey.None)
+        {
+            SwitchKey key = bufferedKey;
+            bufferedKey = SwitchKey.None;
+            nextInputTime = Time.time + inputCooldown;
+            return key;     // same-frame fresh presses fall into the new cooldown
+        }
+
+        if (toggleDown || selectDown)
+        {
+            nextInputTime = Time.time + inputCooldown;
+            return toggleDown ? SwitchKey.Toggle : SwitchKey.Select;
+        }
+        return SwitchKey.None;
     }
 
     /// <summary>
@@ -72,26 +115,19 @@ public class SwitchScanner
                 index = (index + 1) % optionCount;
                 nextAdvanceTime = Time.time + dwellSeconds;
             }
-            if (Time.time >= nextInputTime && Input.GetKeyDown(selectKey))
+            if (ReadKey(allowToggle: false) == SwitchKey.Select)
             {
-                nextInputTime = Time.time + inputCooldown;
                 nextAdvanceTime = Time.time + dwellSeconds; // give the next dwell a full window
                 return index;
             }
         }
         else // ToggleSelect
         {
-            if (Time.time < nextInputTime) return -1;
-            if (Input.GetKeyDown(toggleKey))
-            {
+            SwitchKey key = ReadKey(allowToggle: true);
+            if (key == SwitchKey.Toggle)
                 index = (index + 1) % optionCount;
-                nextInputTime = Time.time + inputCooldown;
-            }
-            else if (Input.GetKeyDown(selectKey))
-            {
-                nextInputTime = Time.time + inputCooldown;
+            else if (key == SwitchKey.Select)
                 return index;
-            }
         }
         return -1;
     }
@@ -113,34 +149,20 @@ public class SwitchScanner
         if (gridCol >= colsInRow) gridCol = 0;
 
         bool advance = false, commit = false;
-        if (mode == Mode.TimeScan)
+        if (mode == Mode.TimeScan && Time.time >= nextAdvanceTime)
         {
-            if (Time.time >= nextAdvanceTime)
-            {
-                advance = true;
-                nextAdvanceTime = Time.time + dwellSeconds;
-            }
-            if (Time.time >= nextInputTime && Input.GetKeyDown(selectKey))
-            {
-                commit = true;
-                ArmCooldowns();
-            }
+            advance = true;
+            nextAdvanceTime = Time.time + dwellSeconds;
         }
-        else // ToggleSelect
+        SwitchKey key = ReadKey(allowToggle: mode == Mode.ToggleSelect);
+        if (key == SwitchKey.Toggle)
         {
-            if (Time.time >= nextInputTime)
-            {
-                if (Input.GetKeyDown(toggleKey))
-                {
-                    advance = true;
-                    nextInputTime = Time.time + inputCooldown;
-                }
-                else if (Input.GetKeyDown(selectKey))
-                {
-                    commit = true;
-                    ArmCooldowns();
-                }
-            }
+            advance = true;
+        }
+        else if (key == SwitchKey.Select)
+        {
+            commit = true;
+            nextAdvanceTime = Time.time + dwellSeconds;
         }
 
         if (commit)
@@ -164,11 +186,5 @@ public class SwitchScanner
             else gridRow = (gridRow + 1) % rows;
         }
         return -1;
-    }
-
-    private void ArmCooldowns()
-    {
-        nextInputTime = Time.time + inputCooldown;
-        nextAdvanceTime = Time.time + dwellSeconds;
     }
 }

@@ -100,3 +100,4 @@ InitTestScene*.unity*
 
 # Coplay MCP local editor cache (package pulled from git in manifest.json)
 Packages/Coplay/
+Snapshots/

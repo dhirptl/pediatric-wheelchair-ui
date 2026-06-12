@@ -36,6 +36,7 @@ public class AvatarSpawner : MonoBehaviour
         if (map != null && map.TryFindClearPosition(out Vector3 pos, clearanceCells))
         {
             agent.Warp(pos);
+            SnapCamera();
             Debug.Log("[AvatarSpawner] Spawned at clear position " + pos);
             return;
         }
@@ -44,11 +45,19 @@ public class AvatarSpawner : MonoBehaviour
         if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 10f, NavMesh.AllAreas))
         {
             agent.Warp(hit.position);
+            SnapCamera();
             Debug.LogWarning("[AvatarSpawner] No clear cell found; snapped in place at " + hit.position);
         }
         else
         {
             Debug.LogError("[AvatarSpawner] Could not place the avatar on the NavMesh at all.");
         }
+    }
+
+    /// <summary>A warp teleports the chair - the follow camera must jump with it, not ease.</summary>
+    private void SnapCamera()
+    {
+        var follow = FindObjectOfType<SmoothCameraFollow>();
+        if (follow != null) follow.SnapToTarget();
     }
 }

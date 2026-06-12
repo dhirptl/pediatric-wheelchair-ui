@@ -52,6 +52,17 @@ public class ButtonJuice : MonoBehaviour
         driveScale = GetComponent<ButtonHighlighter>() == null;
     }
 
+    /// <summary>
+    /// Re-bases the flash's resting color so pops settle onto a new persistent
+    /// panel color (e.g. the Explorer STOP-red state) instead of the color
+    /// cached at Awake.
+    /// </summary>
+    public void RebaseFlashColor(Color color)
+    {
+        baseFlashColor = color;
+        if (routine == null && flashTarget != null) flashTarget.color = color;
+    }
+
     /// <summary>Trigger the pop: punch scale, flash color, play the soft sound.</summary>
     public void Pop()
     {

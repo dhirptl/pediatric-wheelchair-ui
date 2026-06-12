@@ -27,13 +27,27 @@ public class ThemeShopController : MonoBehaviour
     [Tooltip("Highlight scale for cards without a ButtonHighlighter.")]
     public float fallbackScale = 1.08f;
 
+    [Header("Locked-card feedback")]
+    [Tooltip("Gentle buzz when selecting a card that can't be used yet.")]
+    public AudioClip lockedClip;
+    [Range(0f, 1f)] public float lockedVolume = 0.5f;
+    [Tooltip("Horizontal shake distance in pixels for the locked wiggle.")]
+    public float shakePixels = 6f;
+
     private readonly List<Button> cards = new List<Button>();
     private readonly List<TextMeshProUGUI> cardLabels = new List<TextMeshProUGUI>();
     private Button[] scanRing;          // cards + closeButton
     private int scannerLast = -1;
+    private Coroutine shakeRoutine;
+    private AudioSource sfx;
 
     void Start()
     {
+        sfx = GetComponent<AudioSource>();
+        if (sfx == null) sfx = gameObject.AddComponent<AudioSource>();
+        sfx.playOnAwake = false;
+        sfx.spatialBlend = 0f;          // 2D UI sound
+
         BuildCards();
         BuildScanRing();
         if (ScoreManager.Instance != null)
@@ -72,8 +86,39 @@ public class ThemeShopController : MonoBehaviour
         if (selected >= 0)
         {
             Button btn = scanRing[selected];
-            if (btn != null && btn.interactable) btn.onClick.Invoke();
+            if (btn == null) return;
+            if (btn.interactable) btn.onClick.Invoke();
+            else PlayLockedFeedback(btn);   // never let a press do silently nothing
         }
+    }
+
+    /// <summary>
+    /// Gentle "not yet" wiggle + buzz when the child selects a locked or already
+    /// equipped card. Positional motion only (no luminance flash).
+    /// </summary>
+    private void PlayLockedFeedback(Button btn)
+    {
+        if (lockedClip != null) sfx.PlayOneShot(lockedClip, lockedVolume);
+        if (shakeRoutine != null) StopCoroutine(shakeRoutine);
+        shakeRoutine = StartCoroutine(ShakeRoutine(btn.transform as RectTransform));
+    }
+
+    private System.Collections.IEnumerator ShakeRoutine(RectTransform rt)
+    {
+        if (rt == null) yield break;
+        Vector2 basePos = rt.anchoredPosition;
+        const float duration = 0.25f;
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            // Two soft oscillations that decay to rest.
+            float wave = Mathf.Sin(t / duration * 2f * 2f * Mathf.PI) * (1f - t / duration);
+            rt.anchoredPosition = basePos + new Vector2(shakePixels * wave, 0f);
+            yield return null;
+        }
+        rt.anchoredPosition = basePos;
+        shakeRoutine = null;
     }
 
     private void BuildScanRing()
@@ -155,8 +200,13 @@ public class ThemeShopController : MonoBehaviour
             }
             else
             {
-                status = "BUY: " + def.cost + " PTS";
-                interactable = sm != null && sm.CurrentPoints >= def.cost;
+                int have = sm != null ? sm.CurrentPoints : 0;
+                bool affordable = have >= def.cost;
+                // Tell the child how close they are instead of a dead BUY button.
+                // (PTS not the star glyph - LiberationSans SDF lacks ★.)
+                status = affordable ? "BUY: " + def.cost + " PTS"
+                                    : "NEED " + (def.cost - have) + " MORE PTS";
+                interactable = affordable;
             }
 
             if (cardLabels[i] != null) cardLabels[i].text = def.themeName + "\n<size=70%>" + status + "</size>";

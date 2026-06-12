@@ -21,6 +21,8 @@ public class WheelchairStateBridge : MonoBehaviour
     public NavMeshAgent placeholderAgent; // Temp local navigation tool
     [Tooltip("Search radius when snapping goals or the chair itself onto the NavMesh.")]
     public float navSampleRadius = 8f;
+    [Tooltip("HasGoal clears once the remaining path is this short (arrival).")]
+    public float arriveTolerance = 0.5f;
 
     // Action triggered whenever the wheelchair moves (updates gamification/UI)
     public static Action<Vector3> OnWheelchairPoseUpdated;
@@ -108,6 +110,16 @@ public class WheelchairStateBridge : MonoBehaviour
     {
         if (currentMode == ControlState.SIMULATION_PLACEHOLDER)
         {
+            // HasGoal must mean "motion in flight" - the Explorer panel shows a
+            // STOP button while it is true - so clear it once the agent arrives
+            // (StopMotion is the only other thing that clears it).
+            if (HasGoal && placeholderAgent != null && placeholderAgent.isOnNavMesh
+                && !placeholderAgent.pathPending
+                && placeholderAgent.remainingDistance <= Mathf.Max(placeholderAgent.stoppingDistance, arriveTolerance))
+            {
+                HasGoal = false;
+            }
+
             // Broadcast the local Unity capsule position to run the gamification engine
             OnWheelchairPoseUpdated?.Invoke(transform.position);
         }

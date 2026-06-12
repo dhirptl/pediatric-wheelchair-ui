@@ -60,6 +60,10 @@ public class GameModeManager : MonoBehaviour
 
     public void OpenPause()
     {
+        // Opening the menu always parks the chair - a child reaching for
+        // Settings mid-drive must never leave it rolling behind the overlay.
+        if (WheelchairStateBridge.Instance != null)
+            WheelchairStateBridge.Instance.StopMotion();
         if (pauseOverlay != null) pauseOverlay.SetActive(true);
     }
 
