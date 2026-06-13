@@ -26,7 +26,7 @@ public class SwitchScanner
     [Tooltip("Seconds each option stays highlighted before auto-advancing (TimeScan only).")]
     public float dwellSeconds = 20f;
     [Tooltip("Minimum seconds between accepted key presses (debounce).")]
-    public float inputCooldown = 0.5f;
+    public float inputCooldown = 0.18f;
 
     private int index;
     private float nextInputTime;
@@ -84,7 +84,10 @@ public class SwitchScanner
             if (Time.time < nextInputTime) return -1;
             if (Input.GetKeyDown(toggleKey))
             {
-                index = (index + 1) % optionCount;
+                // Space moves the highlight down (wraps to top); Shift+Space moves up (wraps to bottom).
+                index = ReverseHeld()
+                    ? (index - 1 + optionCount) % optionCount
+                    : (index + 1) % optionCount;
                 nextInputTime = Time.time + inputCooldown;
             }
             else if (Input.GetKeyDown(selectKey))
@@ -160,10 +163,18 @@ public class SwitchScanner
 
         if (advance)
         {
-            if (inColumnStage) gridCol = (gridCol + 1) % colsInRow;
-            else gridRow = (gridRow + 1) % rows;
+            // Space advances forward; Shift+Space steps backward through the row/column.
+            int step = ReverseHeld() ? -1 : 1;
+            if (inColumnStage) gridCol = (gridCol + step + colsInRow) % colsInRow;
+            else gridRow = (gridRow + step + rows) % rows;
         }
         return -1;
+    }
+
+    /// <summary>True while Shift is held, used to reverse the scan direction.</summary>
+    private static bool ReverseHeld()
+    {
+        return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
     }
 
     private void ArmCooldowns()
