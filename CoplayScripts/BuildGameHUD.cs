@@ -16,6 +16,19 @@ public class BuildGameHUD
     static readonly Color Black = new Color(0f, 0f, 0f, 1f);
     static readonly Color PanelBlack = new Color(0f, 0f, 0f, 0.85f);
 
+    const string RoundedSpritePath = "Assets/UI/RoundedRect.png";
+    static Sprite _rounded;
+    static Sprite Rounded => _rounded != null ? _rounded : (_rounded = AssetDatabase.LoadAssetAtPath<Sprite>(RoundedSpritePath));
+
+    /// <summary>Give a UI Image rounded corners via the shared 9-sliced sprite.</summary>
+    static void ApplyRounded(Image img)
+    {
+        var s = Rounded;
+        if (s == null || img == null) return;
+        img.sprite = s;
+        img.type = Image.Type.Sliced;
+    }
+
     public static string Execute()
     {
         // --- Clean rebuild ---------------------------------------------------
@@ -62,9 +75,10 @@ public class BuildGameHUD
         SetAnchors(topBar, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
         topBar.rectTransform.sizeDelta = new Vector2(0f, 110f);
         topBar.rectTransform.anchoredPosition = Vector2.zero;
+        ApplyRounded(topBar);
         AddOutline(topBar.gameObject, 2f);
 
-        var backBtn = NewButton("Btn_BackToMenu", topBar.transform, "☰  MENU", new Vector2(300f, 90f), 44f);
+        var backBtn = NewButton("Btn_BackToMenu", topBar.transform, "MENU", new Vector2(300f, 90f), 44f);
         SetAnchors((Image)backBtn.targetGraphic, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
         backBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(16f, 0f);
 
@@ -73,7 +87,7 @@ public class BuildGameHUD
         prompt.rectTransform.sizeDelta = new Vector2(1100f, 90f);
         prompt.fontStyle = FontStyles.Bold;
 
-        var points = NewText("Txt_Points", topBar.transform, "★ 0", 48f, Yellow, TextAlignmentOptions.Right);
+        var points = NewText("Txt_Points", topBar.transform, "PTS: 0", 48f, Yellow, TextAlignmentOptions.Right);
         SetAnchors(points.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
         points.rectTransform.anchoredPosition = new Vector2(-24f, 0f);
         points.rectTransform.sizeDelta = new Vector2(320f, 90f);
@@ -84,6 +98,7 @@ public class BuildGameHUD
         SetAnchors(frame, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f));
         frame.rectTransform.anchoredPosition = new Vector2(-16f, -126f);
         frame.rectTransform.sizeDelta = new Vector2(420f, 420f);
+        ApplyRounded(frame);
 
         var rawGO = new GameObject("MiniMapImage", typeof(RectTransform), typeof(RawImage), typeof(MiniMapClickHandler));
         rawGO.layer = LayerMask.NameToLayer("UI");
@@ -100,6 +115,7 @@ public class BuildGameHUD
         SetAnchors(destPanel, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
         destPanel.rectTransform.anchoredPosition = new Vector2(16f, 0f);
         destPanel.rectTransform.sizeDelta = new Vector2(370f, 700f);
+        ApplyRounded(destPanel);
         AddOutline(destPanel.gameObject, 2f);
         var destLayout = destPanel.gameObject.AddComponent<VerticalLayoutGroup>();
         destLayout.spacing = 18f;
@@ -273,6 +289,7 @@ public class BuildGameHUD
 
         var img = go.GetComponent<Image>();
         img.color = Black;
+        ApplyRounded(img);
         AddOutline(go, 3f);
 
         var btn = go.GetComponent<Button>();
@@ -288,6 +305,11 @@ public class BuildGameHUD
         txt.rectTransform.offsetMin = Vector2.zero;
         txt.rectTransform.offsetMax = Vector2.zero;
         txt.fontStyle = FontStyles.Bold;
+        // Auto-size so longer labels stay inside the button.
+        txt.enableAutoSizing = true;
+        txt.fontSizeMin = 20f;
+        txt.fontSizeMax = fontSize;
+        txt.margin = new Vector4(12f, 6f, 12f, 6f);
 
         return btn;
     }

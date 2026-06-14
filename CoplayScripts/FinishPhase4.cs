@@ -16,6 +16,19 @@ public class FinishPhase4
     static readonly Color Yellow = new Color(1f, 1f, 0f, 1f);
     static readonly Color Black = new Color(0f, 0f, 0f, 1f);
 
+    const string RoundedSpritePath = "Assets/UI/RoundedRect.png";
+    static Sprite _rounded;
+    static Sprite Rounded => _rounded != null ? _rounded : (_rounded = AssetDatabase.LoadAssetAtPath<Sprite>(RoundedSpritePath));
+
+    /// <summary>Give a UI Image rounded corners via the shared 9-sliced sprite.</summary>
+    static void ApplyRounded(Image img)
+    {
+        var s = Rounded;
+        if (s == null || img == null) return;
+        img.sprite = s;
+        img.type = Image.Type.Sliced;
+    }
+
     public static string Execute()
     {
         var log = new System.Text.StringBuilder();
@@ -128,6 +141,7 @@ public class FinishPhase4
 
         var box = NewPanel("ShopBox", panel.transform, new Color(0f, 0f, 0f, 0.85f));
         box.rectTransform.sizeDelta = new Vector2(720f, 860f);
+        ApplyRounded(box);
         AddOutline(box.gameObject, 3f);
         var boxLayout = box.gameObject.AddComponent<VerticalLayoutGroup>();
         boxLayout.childAlignment = TextAnchor.UpperCenter;
@@ -290,6 +304,7 @@ public class FinishPhase4
 
         var img = go.GetComponent<Image>();
         img.color = Black;
+        ApplyRounded(img);
         AddOutline(go, 3f);
 
         var btn = go.GetComponent<Button>();
@@ -302,6 +317,11 @@ public class FinishPhase4
         var txt = NewText("Label", go.transform, label, fontSize, Yellow);
         SetStretch(txt.rectTransform);
         txt.fontStyle = FontStyles.Bold;
+        // Auto-size so longer labels stay inside the button.
+        txt.enableAutoSizing = true;
+        txt.fontSizeMin = 20f;
+        txt.fontSizeMax = fontSize;
+        txt.margin = new Vector4(12f, 6f, 12f, 6f);
 
         return btn;
     }

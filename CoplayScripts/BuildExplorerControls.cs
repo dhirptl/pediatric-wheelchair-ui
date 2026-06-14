@@ -16,6 +16,22 @@ public class BuildExplorerControls
     static readonly Color Yellow = new Color(1f, 1f, 0f, 1f);
     static readonly Color Black = new Color(0f, 0f, 0f, 1f);
 
+    const string RoundedSpritePath = "Assets/UI/RoundedRect.png";
+    const string BubblyFontPath = "Assets/Fonts/Fredoka SDF.asset";
+    static Sprite _rounded;
+    static TMP_FontAsset _bubbly;
+    static Sprite Rounded => _rounded != null ? _rounded : (_rounded = AssetDatabase.LoadAssetAtPath<Sprite>(RoundedSpritePath));
+    static TMP_FontAsset Bubbly => _bubbly != null ? _bubbly : (_bubbly = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(BubblyFontPath));
+
+    /// <summary>Give a UI Image rounded corners via the shared 9-sliced sprite.</summary>
+    static void ApplyRounded(Image img)
+    {
+        var s = Rounded;
+        if (s == null || img == null) return;
+        img.sprite = s;
+        img.type = Image.Type.Sliced;
+    }
+
     public static string Execute()
     {
         var canvas = GameObject.Find("GameHUDCanvas");
@@ -51,6 +67,7 @@ public class BuildExplorerControls
         dashRT.sizeDelta = new Vector2(0f, 290f);
         dashRT.anchoredPosition = Vector2.zero;
         dash.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.75f);
+        ApplyRounded(dash.GetComponent<Image>());
         AddOutline(dash, 2f);
         var hl = dash.GetComponent<HorizontalLayoutGroup>();
         hl.spacing = 48f;
@@ -61,9 +78,9 @@ public class BuildExplorerControls
         hl.childForceExpandWidth = false;
         hl.childForceExpandHeight = false;
 
-        var leftBtn = NewBigButton("Btn_TurnLeft", dash.transform, "<  TURN LEFT", new Vector2(430f, 220f), 52f);
-        var fwdBtn = NewBigButton("Btn_MoveForward", dash.transform, "^  FORWARD", new Vector2(430f, 220f), 52f);
-        var rightBtn = NewBigButton("Btn_TurnRight", dash.transform, "TURN RIGHT  >", new Vector2(430f, 220f), 52f);
+        var leftBtn = NewBigButton("Btn_TurnLeft", dash.transform, "TURN LEFT", new Vector2(430f, 220f), 52f);
+        var fwdBtn = NewBigButton("Btn_MoveForward", dash.transform, "FORWARD", new Vector2(430f, 220f), 52f);
+        var rightBtn = NewBigButton("Btn_TurnRight", dash.transform, "TURN RIGHT", new Vector2(430f, 220f), 52f);
 
         // --- grid menu (strategy 2) ----------------------------------------------
         var gridGO = new GameObject("GridMenu", typeof(RectTransform), typeof(Image), typeof(GridLayoutGroup));
@@ -76,6 +93,7 @@ public class BuildExplorerControls
         gridRT.anchoredPosition = new Vector2(0f, 40f);
         gridRT.sizeDelta = new Vector2(860f, 440f);
         gridGO.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.75f);
+        ApplyRounded(gridGO.GetComponent<Image>());
         AddOutline(gridGO, 2f);
         var grid = gridGO.GetComponent<GridLayoutGroup>();
         grid.cellSize = new Vector2(400f, 190f);
@@ -136,7 +154,9 @@ public class BuildExplorerControls
         rt.SetParent(parent, false);
         if (size != Vector2.zero) rt.sizeDelta = size; // grid cells are sized by the layout
 
-        go.GetComponent<Image>().color = Black;
+        var img = go.GetComponent<Image>();
+        img.color = Black;
+        ApplyRounded(img);
         var outline = go.AddComponent<Outline>();
         outline.effectColor = Yellow;
         outline.effectDistance = new Vector2(4f, -4f);
@@ -157,11 +177,18 @@ public class BuildExplorerControls
         txtRT.offsetMin = Vector2.zero;
         txtRT.offsetMax = Vector2.zero;
         var tmp = txtGO.AddComponent<TextMeshProUGUI>();
+        if (Bubbly != null) tmp.font = Bubbly;
         tmp.text = label;
-        tmp.fontSize = fontSize;
         tmp.color = Yellow;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.fontStyle = FontStyles.Bold;
+        // Auto-size so labels always fit the button (with breathing room) instead
+        // of overflowing at a fixed point size.
+        tmp.enableAutoSizing = true;
+        tmp.fontSizeMin = 24f;
+        tmp.fontSizeMax = fontSize;
+        tmp.enableWordWrapping = true;
+        tmp.margin = new Vector4(14f, 8f, 14f, 8f);
 
         return btn;
     }

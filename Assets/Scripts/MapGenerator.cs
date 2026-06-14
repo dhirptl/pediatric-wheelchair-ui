@@ -14,7 +14,7 @@ public class MapGenerator : MonoBehaviour
     public GameObject wallPrefab;
 
     [Header("Aesthetics")]
-    public float wallHeight = 10f; // Defaulted to 10 for the tall walls
+    public float wallHeight = 15f; // Tall, enclosing walls (~15 units; 1 unit ~= 1 m)
     public Material floorMaterial; // Slot for the floor material
 
     [Header("Generation")]

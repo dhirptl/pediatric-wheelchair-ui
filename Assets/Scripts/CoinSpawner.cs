@@ -1,30 +1,40 @@
+using System;
 using UnityEngine;
 using UnityEngine.AI;
 
 /// <summary>
-/// Drops pooled coins along the NavMesh route every time a navigation goal is
-/// set, sampling evenly spaced points between the path corners. Coins are
-/// pre-instantiated (no runtime Instantiate churn) and registered with the
-/// ScoreManager, which handles distance-based pickup.
+/// Spawns pooled coins for both game modes:
+///   - Explorer  : ~explorerCoinCount coins scattered at random walkable spots
+///                 across the whole map (a free-roam collect-a-thon). They persist
+///                 across forward/turn nav goals and are only cleared on a mode swap.
+///   - MagicTravel: coins dropped along the NavMesh route on each navigation goal,
+///                 spaced out (larger `spacing`) so the trip yields only a few.
 ///
-/// Coins are a Magic Travel reward only: spawning is gated to MagicTravel mode,
-/// and switching to Explorer (driving practice) despawns any active coins.
+/// Coins are pre-instantiated (no runtime Instantiate churn) and registered with the
+/// ScoreManager, which handles distance-based pickup.
 /// </summary>
 public class CoinSpawner : MonoBehaviour
 {
     public GameObject coinPrefab;
     public int poolSize = 32;
-    [Tooltip("Meters between coins along the path.")]
-    public float spacing = 3f;
-    [Tooltip("Meters of path to leave empty right in front of the chair.")]
+    [Tooltip("Meters between coins along the Magic Travel path. Larger = fewer coins per trip.")]
+    public float spacing = 6f;
+    [Tooltip("Meters of path to leave empty right in front of the chair (Magic Travel).")]
     public float skipLead = 2f;
     [Tooltip("Coin float height above the floor.")]
     public float coinHeight = 0.7f;
+    [Tooltip("How many coins to scatter around the map in Explorer mode.")]
+    public int explorerCoinCount = 15;
+    [Tooltip("Keep scattered Explorer coins at least this far from the chair's start.")]
+    public float scatterMinFromChair = 3f;
+    [Tooltip("Minimum spacing between two scattered Explorer coins.")]
+    public float scatterMinSeparation = 2f;
 
     private Coin[] pool;
     private NavMeshPath path;
     private readonly Vector3[] corners = new Vector3[64];
     private GameModeManager modeManager;
+    private MapGenerator map;
 
     void Start()
     {
@@ -38,9 +48,15 @@ public class CoinSpawner : MonoBehaviour
             go.SetActive(false);
         }
 
+        map = FindObjectOfType<MapGenerator>();
+
         // Instance is set in GameModeManager.Awake, so it is ready by Start.
         modeManager = GameModeManager.Instance;
         if (modeManager != null) modeManager.OnModeChanged += HandleModeChanged;
+
+        // Initial Explorer scatter, once the map + NavMesh are ready.
+        if (MapGenerator.IsMapReady) TryScatterIfExplorer();
+        else MapGenerator.OnMapReady += HandleMapReady;
     }
 
     void OnEnable()
@@ -56,23 +72,42 @@ public class CoinSpawner : MonoBehaviour
     void OnDestroy()
     {
         if (modeManager != null) modeManager.OnModeChanged -= HandleModeChanged;
+        MapGenerator.OnMapReady -= HandleMapReady;
+    }
+
+    private void HandleMapReady()
+    {
+        MapGenerator.OnMapReady -= HandleMapReady;
+        TryScatterIfExplorer();
     }
 
     private void HandleModeChanged(GameModeManager.Mode mode)
     {
-        // Leaving Magic Travel: clear the trail so Explorer stays coin-free.
-        if (mode != GameModeManager.Mode.MagicTravel) DespawnAll();
+        DespawnAll();
+        // Explorer: scatter a fresh field of coins to collect.
+        // Magic Travel: coins are dropped per-route in HandleGoal instead.
+        if (mode == GameModeManager.Mode.Explorer) ScatterExplorerCoins();
     }
 
+    private void TryScatterIfExplorer()
+    {
+        if (GameModeManager.Instance != null &&
+            GameModeManager.Instance.CurrentMode == GameModeManager.Mode.Explorer)
+            ScatterExplorerCoins();
+    }
+
+    /// <summary>
+    /// Magic Travel reward: drops spaced-out coins along the route to the goal.
+    /// No-op in Explorer mode so scattered coins survive each forward nav goal.
+    /// </summary>
     private void HandleGoal(Vector3 goal)
     {
         if (pool == null) return;
-        DespawnAll();
-
-        // Coins are a Magic Travel reward only - no coins during driving practice.
         if (GameModeManager.Instance == null ||
             GameModeManager.Instance.CurrentMode != GameModeManager.Mode.MagicTravel)
             return;
+
+        DespawnAll();
 
         var bridge = WheelchairStateBridge.Instance;
         if (bridge == null) return;
@@ -101,8 +136,63 @@ public class CoinSpawner : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Explorer reward: scatter coins at random walkable cells across the map,
+    /// confirmed against the baked NavMesh, away from the chair and from each other.
+    /// </summary>
+    private void ScatterExplorerCoins()
+    {
+        if (pool == null) return;
+        DespawnAll();
+
+        if (map == null) map = FindObjectOfType<MapGenerator>();
+        if (map == null || map.OccupiedCells == null) return;
+
+        Vector3 chairPos = WheelchairStateBridge.Instance != null
+            ? WheelchairStateBridge.Instance.transform.position
+            : Vector3.zero;
+
+        int want = Mathf.Min(explorerCoinCount, pool.Length);
+        float minFromChairSqr = scatterMinFromChair * scatterMinFromChair;
+        float minSepSqr = scatterMinSeparation * scatterMinSeparation;
+
+        int spawned = 0;
+        int attempts = 0;
+        int maxAttempts = want * 40 + 200;
+
+        while (spawned < want && attempts < maxAttempts)
+        {
+            attempts++;
+            int cx = UnityEngine.Random.Range(0, map.Cols);
+            int cy = UnityEngine.Random.Range(0, map.Rows);
+            if (map.OccupiedCells[cx, cy]) continue;                       // wall cell
+
+            Vector3 cell = map.CellToWorld(cx, cy);
+            if (!NavMesh.SamplePosition(cell, out NavMeshHit hit, 1.5f, NavMesh.AllAreas)) continue;
+            if ((hit.position - chairPos).sqrMagnitude < minFromChairSqr) continue;
+
+            Vector3 p = hit.position + Vector3.up * coinHeight;
+
+            bool tooClose = false;
+            for (int i = 0; i < spawned; i++)
+            {
+                if ((pool[i].transform.position - p).sqrMagnitude < minSepSqr) { tooClose = true; break; }
+            }
+            if (tooClose) continue;
+
+            pool[spawned].Spawn(p);
+            if (ScoreManager.Instance != null) ScoreManager.Instance.Register(pool[spawned]);
+            spawned++;
+        }
+
+        if (spawned < want)
+            Debug.LogWarning("[CoinSpawner] Scattered only " + spawned + "/" + want +
+                             " Explorer coins (map may be cramped).");
+    }
+
     private void DespawnAll()
     {
+        if (pool == null) return;
         foreach (Coin c in pool)
             if (c != null) c.Despawn();
     }
