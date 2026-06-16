@@ -1,0 +1,600 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" >
+ 
+ 
+  <!-- body frame dimensions -->
+	<xacro:property name="body_length_x" value="0.86"/>
+	<xacro:property name="body_width_y" value="0.47"/>
+	<xacro:property name="body_height_z" value="0.70"/>
+	<xacro:property name="mass_body" value="136"/>
+	
+<!-- front wheel dimensions -->
+	<xacro:property name="frontwheel_radius" value="0.0750"/>
+        <xacro:property name="frontwheel_thickness" value="0.07"/>
+        <xacro:property name="frontwheel_mass" value="1.2"/>
+        
+        <!-- front wheel dimensions -->
+	<xacro:property name="backwheel_radius" value="0.075"/>
+        <xacro:property name="backwheel_thickness" value="0.07"/>
+        <xacro:property name="backwheel_mass" value="1.2"/>
+        
+        
+
+<!-- rear wheel dimensions --> 
+        <xacro:property name="rearwheel_radius" value="0.125"/>
+        <xacro:property name="rearwheel_thickness" value="0.07"/>
+        <xacro:property name="rearwheel_mass" value="4"/>
+        
+          <!-- add dimensions -->
+	<xacro:property name="add_length_x" value="0.03"/>
+	<xacro:property name="add_width_y" value="0.15"/>
+	<xacro:property name="add_height_z" value="0.2"/>
+	<xacro:property name="mass_add" value="1"/>
+        
+        
+        <xacro:property name="add2_length_x" value="0.25"/>
+	<xacro:property name="add2_width_y" value="0.12"/> 
+	
+	<xacro:property name="add2_height_z" value="0.028"/>
+	<xacro:property name="mass_add2" value="0.6"/>
+        
+        
+        <xacro:property name="dist_c1" value="${body_height_z/2+rearwheel_radius}"/>
+        <xacro:property name="dist_c2" value="${2*rearwheel_radius}"/>
+        <xacro:property name="dist_c3" value="${2*rearwheel_radius}"/>
+        <xacro:property name="dist_c4" value="${body_width_y/2+rearwheel_thickness/2}"/>
+        
+        
+          <!-- add dimensions -->
+	<xacro:property name="add_length_x" value="0.03"/>
+	<!--<xacro:property name="add_width_y" value="0.07"/> -->
+	<xacro:property name="add_width_y" value="0.1"/>
+	<xacro:property name="add_height_z" value="0.035"/>
+	<xacro:property name="mass_add" value="0.05"/>
+	
+	
+	<xacro:property name="add2_length_x" value="0.18"/>
+	<xacro:property name="add2_width_y" value="0.12"/> 
+	
+	<xacro:property name="add2_height_z" value="0.028"/>
+	<xacro:property name="mass_add2" value="0.05"/>
+	
+	
+	<xacro:property name="Ix_add" value="${(1/12)*mass_add*(add_height_z*add_height_z+add_width_y*add_width_y)}"/>
+ 	<xacro:property name="Iy_add" value="${(1/12)*mass_add*(add_length_x*add_length_x+add_height_z*add_height_z)}"/>
+ 	<xacro:property name="Iz_add" value="${(1/12)*mass_add*(add_length_x*add_length_x+add_width_y*add_width_y)}"/>
+        
+        
+        
+        <xacro:macro name="body_inertia">
+        	<inertial>
+        	<origin rpy="0 0 0" xyz="0.0163303801588438 -5.46419109479917E-07 -0.170596913460358"/>
+        	<mass value="35.8441018444197" />
+                <inertia ixx="0.26145346409584" ixy="4.4310329204097E-07" ixz="-0.00292775899478097" iyy="0.81344516219653" iyz="1.63291857463246E-07" izz="0.811360816738177" />
+        	</inertial>
+        </xacro:macro>
+        
+        
+        <xacro:macro name="leftrearwheel_inertia">
+        	<inertial>
+        	<origin rpy="0 0 0" xyz="-1.3878E-17 0.042001 0"/>
+        	<mass value="4.2215" />
+                <inertia ixx="0.019503" ixy="3.621E-20" ixz="1.3894E-18"
+                    iyy="0.033736" iyz="5.5453E-19"
+                    izz="0.019503" />
+        	</inertial>
+        </xacro:macro>
+        
+        <xacro:macro name="rightrearwheel_inertia">
+        	<inertial>
+        	<origin rpy="0 0 0" xyz="-1.3878E-17 -0.042001 0"/>
+        	<mass value="4.2215" />
+                <inertia ixx="0.019503" ixy="-5.7044E-19" ixz="-2.7982E-18"
+                    iyy="0.033736" iyz="8.5892E-19"
+                    izz="0.019503" />
+        	</inertial>
+        </xacro:macro>
+        
+        
+        <xacro:macro name="leftfrontwheel_inertia">
+        	<inertial>
+        	<origin rpy="0 0 0" xyz="2.7756E-17 0.022225 0"/>
+        	<mass value="0.8052" />
+                <inertia ixx="0.0013095" ixy="0.0" ixz="-8.6712E-40"
+                    iyy="0.0023539" iyz="-2.6721E-36"
+                    izz="0.0013095" />
+        	</inertial>
+        </xacro:macro>
+        
+        
+        <xacro:macro name="leftbackwheel_inertia">
+        	<inertial>
+        	<origin rpy="0 0 0" xyz="5.5511E-17 0.022225 -4.1633E-17"/>
+        	<mass value="0.8052" />
+                <inertia ixx="0.0013095" ixy="-1.7257E-21" ixz="-1.3367E-34"
+                    iyy="0.0023539" iyz="-1.2373E-18"
+                    izz="0.0013095" />
+        	</inertial>
+        </xacro:macro>
+        
+        
+        <xacro:macro name="rightfrontwheel_inertia">
+        	<inertial>
+        	<origin rpy="0 0 0" xyz="2.7756E-17 -0.022225 0"/>
+        	<mass value="0.8052" />
+                <inertia ixx="0.0013095" ixy="0.0" ixz="-8.6712E-40"
+                    iyy="0.0023539" iyz="-2.6721E-36"
+                    izz="0.0013095" />
+        	</inertial>
+        </xacro:macro>
+        
+        <xacro:macro name="rightbackwheel_inertia">
+        	<inertial>
+        	<origin rpy="0 0 0" xyz="5.5511E-17 -0.022225 -4.1633E-17"/>
+        	<mass value="0.8052" />
+                <inertia ixx="0.0013095" ixy="-1.7257E-21" ixz="1.492E-34"
+                    iyy="0.0023539" iyz="1.2373E-18"
+                    izz="0.0013095" />
+        	</inertial>
+        </xacro:macro>
+        
+        
+        <xacro:macro name="add_inertia">
+        	<inertial>
+        	<origin rpy="0 0 0" xyz="0 0 0"/>
+        	<mass value="${mass_add}" />
+                <inertia ixx="${Ix_add}" ixy="0.0" ixz="0.0"
+                    iyy="${Iy_add}" iyz="0.0"
+                    izz="${Iz_add}" />
+        	</inertial>
+        </xacro:macro>
+        
+        
+        
+        <gazebo reference="body_frame">
+             <mu1>4</mu1>  
+	     <mu2>4</mu2>  
+		<material>Gazebo/Blue</material>
+	</gazebo>
+	
+	<gazebo reference="left_rearwheel">
+              <mu1>1.8</mu1> 
+	      <mu2>1.8</mu2> 
+		<material>Gazebo/Black</material>
+	</gazebo>
+	
+	<gazebo reference="right_rearwheel">
+              <mu1>1.8</mu1> 
+	      <mu2>1.8</mu2> 
+		<material>Gazebo/Black</material>
+	</gazebo>
+         
+        <gazebo reference="left_frontwheel">
+        	<material>Gazebo/Black</material>
+        	<mu1>0.72</mu1>
+        	<mu2>0.72</mu2>
+    	</gazebo>
+    	
+    	<gazebo reference="right_frontwheel">
+        	<material>Gazebo/Black</material>
+        	<mu1>0.72</mu1>
+        	<mu2>0.72</mu2>
+    	</gazebo>
+    	
+    	<gazebo reference="left_backwheel">
+        	<material>Gazebo/Black</material>
+        	<mu1>0.72</mu1>
+        	<mu2>0.72</mu2>
+    	</gazebo>
+    	
+    	<gazebo reference="right_backwheel">
+        	<material>Gazebo/Black</material>
+        	<mu1>0.72</mu1>
+        	<mu2>0.72</mu2>
+    	</gazebo>
+    	
+    	<gazebo reference="add">
+        	<material>Gazebo/Grey</material>
+    	</gazebo>
+    	<gazebo reference="add2">
+        	<material>Gazebo/Grey</material>
+    	</gazebo>
+    	<gazebo reference="add3">
+        	<material>Gazebo/Blue</material>
+    	</gazebo>
+    	<gazebo reference="add4">
+        	<material>Gazebo/Grey</material>
+    	</gazebo>
+    	<gazebo reference="add5">
+        	<material>Gazebo/Grey</material>
+    	</gazebo>
+    	<gazebo reference="add6">
+        	<material>Gazebo/Grey</material>
+    	</gazebo>
+    	
+    	 <link name="base_link">
+
+        </link>
+
+        <!-- ROBOT_FOOTPRINT LINK -->
+
+        <joint name="robot_footprint_joint" type="fixed">
+        	<parent link="base_link"/>
+        	<child link="robot_footprint"/>
+        	<origin xyz="0 0 0" rpy="0 0 0"/>
+    	</joint>
+
+    	<link name="robot_footprint">
+    	</link>
+    	
+    	
+    	<joint name="baselink_to_bodyframe" type="fixed">	
+    		<parent link="base_link" />
+  		<child link="body_frame" />
+  		<origin xyz="0 0 0" rpy="3.14159 0 0"/>
+  	</joint>
+  	
+  	
+  	
+  	<!-- Body frame LINK -->
+  	<link name="body_frame">
+  		<visual>
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/bodyframe.STL"/> 
+  			</geometry>
+  		<origin rpy="0 0 0" xyz="0 0 0"/>
+  		</visual>
+  		
+  		<collision>
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/bodyframe.STL"/>
+  			</geometry>
+  		<origin rpy="0 0 0" xyz="0 0 0"/>
+  		</collision>
+  		
+  		<xacro:body_inertia />
+  	</link>
+  	
+  	
+  	<joint name="right_rearwheel_joint" type="continuous">
+        	<parent link="body_frame"/>
+        	<child link="right_rearwheel"/>
+        	<origin xyz="0.0381 0.31115 -0.05715" rpy="0 0 0" />  <!-- Defined wrt to he coordinate of the base link -->
+        	<axis xyz="0 -1 0"/>  
+        	<limit effort="1000" velocity="1000"/> 
+                <dynamics damping="1.0" friction="1.0"/>  
+         </joint>
+       
+       
+      <!-- Right rear wheel link --> 
+       
+       <link name="right_rearwheel">
+  		<visual>
+  			<origin rpy="0 0 0" xyz="0 0 0" />
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/rightdrivenwheel_link.STL"/>
+  			</geometry>
+  		</visual>
+  		
+  		<collision>
+  			<origin rpy="0 0 0" xyz="0 0 0" />
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/rightdrivenwheel_link.STL"/>
+  			</geometry>
+  		</collision>
+  		
+  		<xacro:rightrearwheel_inertia />
+  	</link>
+  	
+  	
+  	
+  	<joint name="left_rearwheel_joint" type="continuous">
+        	<parent link="body_frame"/>
+        	<child link="left_rearwheel"/>
+        	<origin xyz="0.0381 -0.31115 -0.05715" rpy="0 0 0" />  <!-- Defined wrt to the coordinate of the base link -->
+        	<axis xyz="0 -1 0"/>  
+        	<limit effort="1000" velocity="1000"/>  
+                <dynamics damping="1.0" friction="1.0"/>
+       </joint>
+       
+       <!-- Left rear wheel link --> 
+       
+       <link name="left_rearwheel">
+  		<visual>
+  			<origin rpy="0 0 0" xyz="0 0 0" />
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/leftdrivenwheel_link.STL"/>
+  				<!--<cylinder radius="${rearwheel_radius}" length="${rearwheel_thickness}" /> --> 
+  			</geometry>
+  		</visual>
+  		
+  		<collision>
+  			<origin rpy="0 0 0" xyz="0 0 0" />
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/leftdrivenwheel_link.STL"/>
+  				<!--<cylinder radius="${rearwheel_radius}" length="${rearwheel_thickness}" /> --> 
+  			</geometry>
+  		</collision>
+  		
+  		<xacro:leftrearwheel_inertia />
+  	</link>
+  	
+       
+       <!-- Left front wheel joint--> 
+       <joint name="left_frontwheel_joint" type="fixed">
+        	<parent link="body_frame"/>
+        	<child link="left_frontwheel"/>
+        	<origin xyz="0.2667 -0.27622 -0.00635" rpy="0 0 0" />
+    	</joint>
+    	
+    	<!-- Left front wheel link --> 
+    	<link name="left_frontwheel">
+  		<visual>
+  			<origin rpy="0 0 0" xyz="0 0 0" />
+  			<!--<origin rpy="1.570795 0 0" xyz="0 0 0" /> --> 
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/frontleftcastor_link.STL"/>
+  				<!--<cylinder radius="${frontwheel_radius}" length="${frontwheel_thickness}" /> --> 
+  			</geometry>
+  		</visual>
+  		
+  		<collision>
+  			<origin rpy="0 0 0" xyz="0 0 0" />
+  			<!--<origin rpy="1.570795 0 0" xyz="0 0 0" />--> 
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/frontleftcastor_link.STL"/>
+  				<!--<cylinder radius="${frontwheel_radius}" length="${frontwheel_thickness}" /> --> 
+  			</geometry>
+  		</collision>
+  		
+  		<xacro:leftfrontwheel_inertia />
+  	</link>
+  	
+  	
+  	
+  	<!-- Right front wheel joint--> 
+       <joint name="right_frontwheel_joint" type="fixed">
+        	<parent link="body_frame"/>
+        	<child link="right_frontwheel"/>
+        	<origin xyz="0.2667 0.27622 -0.00635" rpy="0 0 0" />
+    	</joint>
+    	
+    	
+    	<!-- Right front wheel link --> 
+    	<link name="right_frontwheel">
+  		<visual>
+  			<origin rpy="0 0 0" xyz="0 0 0" />
+  			<!--<origin rpy="1.570795 0 0" xyz="0 0 0" /> --> 
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/frontrightcastor_link.STL"/>
+  				<!--<cylinder radius="${frontwheel_radius}" length="${frontwheel_thickness}" /> --> 
+  			</geometry>
+  		</visual>
+  		
+  		<collision>
+  			<origin rpy="0 0 0" xyz="0 0 0" />
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/frontrightcastor_link.STL"/>
+  				<!--<cylinder radius="${frontwheel_radius}" length="${frontwheel_thickness}" /> --> 
+  			</geometry>
+  		</collision>
+  		
+  		<xacro:rightfrontwheel_inertia />
+  	</link>
+  	
+  	
+  	 <!-- Left back caster wheel joint--> 
+       <joint name="left_backwheel_joint" type="fixed">
+        	<parent link="body_frame"/>
+        	<child link="left_backwheel"/>
+        	<origin xyz="-0.254 -0.20637 -0.00635" rpy="0 0 0" />
+    	</joint>
+    	
+    	
+    	<!-- Left front wheel link --> 
+    	<link name="left_backwheel">
+  		<visual>
+  			<origin rpy="0 0 0" xyz="0 0 0" />
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/backleftcastor_link.STL"/>
+  				<!--<cylinder radius="${backwheel_radius}" length="${backwheel_thickness}" /> --> 
+  			</geometry>
+  		</visual>
+  		
+  		<collision>
+  			<origin rpy="0 0 0" xyz="0 0 0" />
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/backleftcastor_link.STL"/>
+  				<!--<cylinder radius="${backwheel_radius}" length="${backwheel_thickness}" /> --> 
+  			</geometry>
+  		</collision>
+  		
+  		<xacro:leftbackwheel_inertia />
+  	</link>
+  	
+  	
+  	<!-- Right back wheel joint--> 
+       <joint name="right_backwheel_joint" type="fixed">
+        	<parent link="body_frame"/>
+        	<child link="right_backwheel"/>
+        	<origin xyz="-0.254 0.20637 -0.00635" rpy="0 0 0" />
+    	</joint>
+    	
+    	
+    	<!-- Right front wheel link --> 
+    	<link name="right_backwheel">
+  		<visual>
+  			<origin rpy="0 0 0" xyz="0 0 0" />
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/backrightcastor_link.STL"/>
+  				<!--<cylinder radius="${backwheel_radius}" length="${backwheel_thickness}" /> --> 
+  			</geometry>
+  		</visual>
+  		
+  		<collision>
+  			<origin rpy="0 0 0" xyz="0 0 0" />
+  			<geometry>
+  			        <mesh filename="package://my_robot/meshes/backrightcastor_link.STL"/>
+  				<!--<cylinder radius="${backwheel_radius}" length="${backwheel_thickness}" /> -->
+  			</geometry>
+  		</collision>
+  		
+  		<xacro:rightbackwheel_inertia />
+  	</link>
+  	
+  	
+  	
+  	<joint name="baselink_to_add" type="fixed">	
+    		<parent link="base_link" />
+  		<child link="add" />
+  		<!--<origin rpy="0 0 0" xyz="0.25 -0.375 0.72"/> --> 
+  		<origin rpy="0 0 0" xyz="0.415 -0.24 0.725"/>
+  	</joint>
+  	
+        <link name="add">
+         <visual>
+  	     <geometry>
+  	          <box size="${add_length_x} ${add_width_y} ${add_height_z}" />
+  	     </geometry>
+  	     
+         </visual>
+  		
+         <collision>
+  	     <geometry>
+  	          <box size="${add_length_x} ${add_width_y} ${add_height_z}" />
+  	     </geometry>
+  	     
+         </collision>
+  		
+         <xacro:add_inertia />
+       </link>
+       
+       
+       <joint name="baselink_to_add2" type="fixed">	
+    		<parent link="base_link" />
+  		<child link="add2" />
+  		<origin rpy="0 0 0" xyz="0.45 -0.19 0.338"/>
+  	</joint>
+  	
+        <link name="add2">
+         <visual>
+  	     <geometry>
+  	          <box size="${add2_length_x} ${add2_width_y} ${add2_height_z}" />
+  	     </geometry>
+  	     
+         </visual>
+  		
+         <collision>
+  	     <geometry>
+  	          <box size="${add2_length_x} ${add2_width_y} ${add2_height_z}" />
+  	     </geometry>
+  	     
+         </collision>
+  		
+         <xacro:add_inertia />
+       </link>
+       
+       
+       <joint name="baselink_to_add3" type="fixed">	
+    		<parent link="base_link" />
+  		<child link="add3" />
+  		<origin rpy="0 0 0" xyz="0.26 -0.20 0.423"/>
+  	</joint>
+  	
+        <link name="add3">
+         <visual>
+  	     <geometry>
+  	          <box size="0.05 0.1 0.03" />
+  	     </geometry>
+  	     
+         </visual>
+  		
+         <collision>
+  	     <geometry>
+  	          <box size="0.05 0.1 0.03" />
+  	     </geometry>
+  	     
+         </collision>
+  		
+         <xacro:add_inertia />
+       </link>
+       
+       
+       <joint name="baselink_to_add4" type="fixed">	
+    		<parent link="base_link" />
+  		<child link="add4" />
+  		<origin rpy="0 0 0" xyz="0.26 -0.235 0.56"/>
+  	</joint>
+  	
+        <link name="add4">
+         <visual>
+  	     <geometry>
+  	          <box size="0.02 0.02 0.3" />
+  	     </geometry>
+  	     
+         </visual>
+  		
+         <collision>
+  	     <geometry>
+  	          <box size="0.02 0.02 0.3" />
+  	     </geometry>
+  	     
+         </collision>
+  		
+         <xacro:add_inertia />
+       </link>
+       
+       
+       <joint name="baselink_to_add5" type="fixed">	
+    		<parent link="base_link" />
+  		<child link="add5" />
+  		<origin rpy="0 1.570795 0" xyz="0.33 -0.235 0.7"/>
+  	</joint>
+  	
+        <link name="add5">
+         <visual>
+  	     <geometry>
+  	          <box size="0.02 0.02 0.15" />
+  	     </geometry>
+  	     
+         </visual>
+  		
+         <collision>
+  	     <geometry>
+  	          <box size="0.02 0.02 0.15" />
+  	     </geometry>
+  	     
+         </collision>
+  		
+         <xacro:add_inertia />
+       </link>
+      
+      
+      
+      
+        <joint name="baselink_to_add6" type="fixed">	
+    		<parent link="base_link" />
+  		<child link="add6" />
+  		<origin rpy="0 0 0" xyz="0.37 -0.235 0.52"/>
+  	</joint>
+  	
+        <link name="add6">
+         <visual>
+  	     <geometry>
+  	          <box size="0.02 0.02 0.37" />
+  	     </geometry>
+  	     
+         </visual>
+  		
+         <collision>
+  	     <geometry>
+  	          <box size="0.02 0.02 0.37" />
+  	     </geometry>
+  	     
+         </collision>
+  		
+         <xacro:add_inertia />
+       </link>
+  	
+</robot>

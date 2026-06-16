@@ -20,6 +20,8 @@ public class MapGenerator : MonoBehaviour
     [Header("Generation")]
     [Tooltip("Pixels per wall cell. 1 = one cube per pixel (crisp but heavy). Higher = fewer, chunkier cubes. Uses OR-reduction so walls only thicken, never develop gaps.")]
     public int cellSize = 2;
+    [Tooltip("World units per cell. Lower = smaller map. Independent of cellSize (pixel reduction).")]
+    public float worldUnitsPerCell = 0.6f;
     [Tooltip("A pixel counts as a wall when its grayscale is below this value.")]
     [Range(0f, 1f)] public float wallThreshold = 0.5f;
     [Tooltip("Drop wall cells that have fewer than this many occupied orthogonal neighbors (removes lone speckles / stray dots on the floor). 0 disables de-speckling.")]
@@ -46,7 +48,7 @@ public class MapGenerator : MonoBehaviour
     public float WorldWidth => Cols * cellWorld;
     public float WorldHeight => Rows * cellWorld;
 
-    private int cellWorld;   // cell edge length in world units (== clamped cellSize)
+    private float cellWorld;   // cell edge length in world units (== worldUnitsPerCell)
     private float offsetX, offsetZ;
 
     // CHANGED: Awake runs before Start, ensuring the floor exists before the wheelchair drops!
@@ -69,23 +71,29 @@ public class MapGenerator : MonoBehaviour
 
         int w = grid.width;
         int h = grid.height;
-        offsetX = w / 2f;
-        offsetZ = h / 2f;
 
-        // 1. BUILD THE FLOOR (default Unity plane is 10x10 units, so divide by 10 to fit)
-        GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        floor.name = "AutoFloor";
-        floor.transform.localScale = new Vector3(w / 10f, 1, h / 10f);
-        floor.transform.position = Vector3.zero;
-        floor.transform.parent = mapParent.transform;
-        if (floorMaterial != null)
-            floor.GetComponent<Renderer>().material = floorMaterial;
+        // World size per cell, decoupled from the pixel-reduction factor below.
+        float wc = Mathf.Max(0.01f, worldUnitsPerCell);
 
         // 2. OCCUPANCY -> CELL GRID (block-based, OR-reduced so walls stay watertight)
         int cell = Mathf.Max(1, cellSize);
         Color[] pixels = grid.GetPixels(); // single read instead of width*height GetPixel calls
         int cols = (w + cell - 1) / cell;
         int rows = (h + cell - 1) / cell;
+
+        // Center the map on the origin, in world units.
+        offsetX = cols * wc / 2f;
+        offsetZ = rows * wc / 2f;
+
+        // 1. BUILD THE FLOOR (default Unity plane is 10x10 units, so divide by 10 to fit)
+        GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        floor.name = "AutoFloor";
+        floor.transform.localScale = new Vector3(cols * wc / 10f, 1, rows * wc / 10f);
+        floor.transform.position = Vector3.zero;
+        floor.transform.parent = mapParent.transform;
+        if (floorMaterial != null)
+            floor.GetComponent<Renderer>().material = floorMaterial;
+
         bool[,] occ = new bool[cols, rows];
         for (int cxi = 0; cxi < cols; cxi++)
         {
@@ -131,12 +139,12 @@ public class MapGenerator : MonoBehaviour
             for (int cyi = 0; cyi < rows; cyi++)
             {
                 if (!occ[cxi, cyi]) continue;
-                float cx = cxi * cell + cell / 2f;
-                float cz = cyi * cell + cell / 2f;
+                float cx = cxi * wc + wc / 2f;
+                float cz = cyi * wc + wc / 2f;
                 Vector3 spawnPosition = new Vector3(cx - offsetX, wallHeight / 2f, cz - offsetZ);
 
                 GameObject newWall = Instantiate(wallPrefab, spawnPosition, Quaternion.identity);
-                newWall.transform.localScale = new Vector3(cell, wallHeight, cell);
+                newWall.transform.localScale = new Vector3(wc, wallHeight, wc);
                 newWall.transform.parent = mapParent.transform;
                 wallCount++;
             }
@@ -163,7 +171,7 @@ public class MapGenerator : MonoBehaviour
         OccupiedCells = occ;
         Cols = cols;
         Rows = rows;
-        cellWorld = cell;
+        cellWorld = wc;
         IsMapReady = true;
         OnMapReady?.Invoke();
     }
