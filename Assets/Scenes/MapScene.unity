@@ -184,7 +184,7 @@ MonoBehaviour:
   avatarName: Wheelchair_Avatar
   forwardDistance: 3
   turnAngle: 45
-  turnDuration: 0.25
+  turnDuration: 0.28
 --- !u!1 &39786844
 GameObject:
   m_ObjectHideFlags: 0
@@ -427,7 +427,7 @@ PrefabInstance:
     - target: {fileID: 3676339604975042377, guid: a95b7083804e34df6a5c0c4f3e99cb7b,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.93041027
+      value: -0.91301284
       objectReference: {fileID: 0}
     - target: {fileID: 3676339604975042377, guid: a95b7083804e34df6a5c0c4f3e99cb7b,
         type: 3}
@@ -3009,7 +3009,7 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 0.5
-  m_Speed: 3.5
+  m_Speed: 3.15
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120

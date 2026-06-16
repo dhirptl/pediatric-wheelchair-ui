@@ -53,6 +53,7 @@ public class ExplorerController : MonoBehaviour
     private int displayIndex;
     private int scannerLast = -1;
     private bool isTurning;
+    private Coroutine turnCo;
 
     void Start()
     {
@@ -148,9 +149,13 @@ public class ExplorerController : MonoBehaviour
 
     private void ExecuteTurn(float degrees)
     {
-        if (bridge == null || isTurning) return;
+        if (bridge == null) return;
+        // Interruptible: a turn fired mid-turn (e.g. quick Left after Right) cancels
+        // the in-progress one and replaces it, so the chair reverses cleanly instead
+        // of dropping the input and snapping/jittering.
+        if (turnCo != null) StopCoroutine(turnCo);
         bridge.StopMotion();            // stop any forward motion before reorienting
-        StartCoroutine(TurnRoutine(degrees));
+        turnCo = StartCoroutine(TurnRoutine(degrees));
     }
 
     IEnumerator TurnRoutine(float degrees)
@@ -169,5 +174,6 @@ public class ExplorerController : MonoBehaviour
             yield return null;
         }
         isTurning = false;
+        turnCo = null;
     }
 }

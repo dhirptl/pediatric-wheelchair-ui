@@ -21,7 +21,7 @@ public class MapGenerator : MonoBehaviour
     [Tooltip("Pixels per wall cell. 1 = one cube per pixel (crisp but heavy). Higher = fewer, chunkier cubes. Uses OR-reduction so walls only thicken, never develop gaps.")]
     public int cellSize = 2;
     [Tooltip("World units per cell. Lower = smaller map. Independent of cellSize (pixel reduction).")]
-    public float worldUnitsPerCell = 0.6f;
+    public float worldUnitsPerCell = 0.5f;
     [Tooltip("A pixel counts as a wall when its grayscale is below this value.")]
     [Range(0f, 1f)] public float wallThreshold = 0.5f;
     [Tooltip("Drop wall cells that have fewer than this many occupied orthogonal neighbors (removes lone speckles / stray dots on the floor). 0 disables de-speckling.")]
