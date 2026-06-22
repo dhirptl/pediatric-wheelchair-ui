@@ -13,6 +13,7 @@ public static class GamePrefs
     public const string RoomCalibration = "RoomCalibration";
     public const string OwnedThemes = "OwnedThemes";
     public const string EquippedTheme = "EquippedTheme";
+    public const string FollowAssistLog = "FollowAssistLog";
 
     public static int GetInt(string key, int defaultValue = 0) => PlayerPrefs.GetInt(key, defaultValue);
 
