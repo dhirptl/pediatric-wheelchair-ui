@@ -37,7 +37,7 @@ public class SmartGuideController : MonoBehaviour
     public Button caregiverButton;   // Caregiver (grown-up)
     public Button wallButton;        // WallCorridor
     public Button doorButton;        // Doorway (exit / doorway)
-    [Tooltip("Reopens the pause/settings overlay so the child can switch modes. Appended to the picker scan ring.")]
+    [Tooltip("Hands the scanner to the top tab bar (ModeTabBar.Focus) so the child can switch mode/view. Appended to the picker scan ring.")]
     public Button menuButton;
 
     [Header("Active-tracking HUD")]
@@ -173,8 +173,8 @@ public class SmartGuideController : MonoBehaviour
         if (index < 0 || index >= ring.Count) return;
         Button btn = ring[index];
         // Switch-scan selection and touch both route through onClick, so the target
-        // buttons (FollowCaregiver/Wall/Doorway), the menu button (OpenPause) and the
-        // stop button (StopFollowing) behave identically either way.
+        // buttons (FollowCaregiver/Wall/Doorway), the menu button (ModeTabBar.Focus)
+        // and the stop button (StopFollowing) behave identically either way.
         if (btn != null && btn.interactable) btn.onClick.Invoke();
     }
 

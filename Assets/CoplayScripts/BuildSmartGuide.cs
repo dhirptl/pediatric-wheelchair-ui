@@ -134,7 +134,10 @@ public static class BuildSmartGuide
             UnityEventTools.AddPersistentListener(btnDoor.GetComponent<Button>().onClick, new UnityAction(ctrl.FollowDoorway));
             UnityEventTools.AddPersistentListener(btnCare.GetComponent<Button>().onClick, new UnityAction(ctrl.FollowCaregiver));
             UnityEventTools.AddPersistentListener(btnWall.GetComponent<Button>().onClick, new UnityAction(ctrl.FollowWall));
-            UnityEventTools.AddPersistentListener(btnMenu.GetComponent<Button>().onClick, new UnityAction(gmm.BackToMenu));
+            // Menu button now hands the scanner to the top tab bar; the live wiring
+            // (ModeTabBar.Focus) is set in CoplayScripts/FixMenuConsistency.cs. The
+            // pause modal was retired, so wire a safe default here if ever re-run.
+            UnityEventTools.AddPersistentListener(btnMenu.GetComponent<Button>().onClick, new UnityAction(gmm.SetModeExplorer));
 
             // field wiring via SerializedObject (keeps this file free of TMPro types)
             var so = new SerializedObject(ctrl);

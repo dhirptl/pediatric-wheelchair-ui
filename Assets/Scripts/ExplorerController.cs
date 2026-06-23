@@ -7,8 +7,9 @@ using UnityEngine;
 ///
 /// Two input pathways run side by side with no settings swap:
 ///   1. BCI 2-key loop  - the Toggle key (Space) cycles the panel through
-///                        [MOVE FORWARD] -> [TURN RIGHT] -> [TURN LEFT] -> [SETTINGS];
-///                        the Select key (Enter) executes the shown command.
+///                        [MOVE FORWARD] -> [TURN RIGHT] -> [TURN LEFT] -> [MENU];
+///                        the Select key (Enter) executes the shown command. MENU
+///                        hands the scanner to the top tab bar (ModeTabBar.Focus).
 ///   2. Direct keys     - W/Up, A/Left, D/Right, S/Down immediately execute the
 ///                        matching command and bypass the toggle cycle. They
 ///                        trigger the *identical* panel animation (5% pop + color
@@ -47,7 +48,7 @@ public class ExplorerController : MonoBehaviour
 
     // Only the first four are in the toggle cycle; Stop is direct-key only.
     private const int CycleCount = 4;
-    private static readonly string[] labels = { "MOVE FORWARD", "TURN RIGHT", "TURN LEFT", "SETTINGS", "STOP" };
+    private static readonly string[] labels = { "MOVE FORWARD", "TURN RIGHT", "TURN LEFT", "MENU", "STOP" };
     private static readonly string[] glyphs = { "▲", "▶", "◀", "●", "■" };
 
     private int displayIndex;
@@ -139,7 +140,9 @@ public class ExplorerController : MonoBehaviour
                 ExecuteTurn(-turnAngle);
                 break;
             case Command.Settings:
-                if (GameModeManager.Instance != null) GameModeManager.Instance.OpenPause();
+                // The 4th cycle item ("MENU") hands the two-switch scanner to the
+                // top tab bar so the child can change mode/view - there is no modal.
+                if (ModeTabBar.Instance != null) ModeTabBar.Instance.Focus();
                 break;
             case Command.Stop:
                 if (bridge != null) bridge.StopMotion();

@@ -2,12 +2,15 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// Owns the active control mode (Magic Travel vs Explorer) and the pause/settings
-/// overlay. Mode changes toggle the matching HUD panels, stop any in-flight
-/// motion through the bridge, and persist across sessions via PlayerPrefs.
+/// Owns the active control mode (Magic Travel / Explorer / Smart Guide). Mode
+/// changes toggle the matching HUD panels, stop any in-flight motion through the
+/// bridge, and persist across sessions via PlayerPrefs.
 ///
 /// The game boots straight into the environment (no separate Main Menu scene);
-/// this pause/settings overlay is the master mode switcher.
+/// the persistent top tab bar (ModeTabBar) is the master mode switcher. There is
+/// no separate pause/settings modal - Apply() is the single authority deciding
+/// which one mode panel is visible, so the tab, the panel, and the mode can never
+/// drift apart.
 /// </summary>
 public class GameModeManager : MonoBehaviour
 {
@@ -19,9 +22,6 @@ public class GameModeManager : MonoBehaviour
     public GameObject explorerDashboard;
     public GameObject destinationPanel;
     public GameObject smartGuidePanel;
-
-    [Header("Pause overlay")]
-    public GameObject pauseOverlay;
 
     public Mode CurrentMode { get; private set; } = Mode.Explorer;
     public event Action<Mode> OnModeChanged;
@@ -40,11 +40,10 @@ public class GameModeManager : MonoBehaviour
 
     void Start()
     {
-        if (pauseOverlay != null) pauseOverlay.SetActive(false);
         Apply();
     }
 
-    // Wired to the pause-overlay buttons.
+    // Wired to the top tab bar buttons (ModeTabBar).
     public void SetModeMagicTravel() => SetMode(Mode.MagicTravel);
     public void SetModeExplorer() => SetMode(Mode.Explorer);
     public void SetModeSmartGuide() => SetMode(Mode.SmartGuide);
@@ -56,30 +55,7 @@ public class GameModeManager : MonoBehaviour
         if (WheelchairStateBridge.Instance != null)
             WheelchairStateBridge.Instance.StopMotion();
         Apply();
-        ClosePause();
         OnModeChanged?.Invoke(mode);
-    }
-
-    public void OpenPause()
-    {
-        if (pauseOverlay != null) pauseOverlay.SetActive(true);
-    }
-
-    // Wired to the Smart Guide panel's "BACK TO MENU" button. Hides the Smart Guide
-    // screen so it doesn't linger behind the menu, then opens the settings overlay.
-    // Resume (ClosePause) re-Applies the current mode and brings the picker back.
-    public void BackToMenu()
-    {
-        if (smartGuidePanel != null) smartGuidePanel.SetActive(false);
-        OpenPause();
-    }
-
-    public void ClosePause()
-    {
-        if (pauseOverlay != null) pauseOverlay.SetActive(false);
-        // Restore whichever mode panel is current. A no-op for modes whose panel was
-        // never hidden (Explorer / Magic Travel); re-shows Smart Guide after BackToMenu.
-        Apply();
     }
 
     private void Apply()

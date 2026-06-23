@@ -14,6 +14,7 @@ public static class GamePrefs
     public const string OwnedThemes = "OwnedThemes";
     public const string EquippedTheme = "EquippedTheme";
     public const string FollowAssistLog = "FollowAssistLog";
+    public const string ViewMode = "ViewMode";
 
     public static int GetInt(string key, int defaultValue = 0) => PlayerPrefs.GetInt(key, defaultValue);
 
