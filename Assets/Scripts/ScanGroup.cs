@@ -16,7 +16,7 @@ public class ScanGroup
     [Tooltip("Columns for two-stage row/column grid scanning; 0 or 1 = linear scan.")]
     public int gridCols = 0;
     public SwitchScanner scanner = new SwitchScanner();
-    [Tooltip("Deprecated: highlighting is glow-only (no scale). Kept for serialized scenes; unused.")]
+    [Tooltip("Enlargement for the highlighted button when it has no ButtonHighlighter component.")]
     public float fallbackScale = 1.12f;
 
     public event Action<int> OnOptionSelected;
@@ -74,9 +74,10 @@ public class ScanGroup
         var button = options[i];
         if (button == null) return;
         var hl = highlighters != null && i < highlighters.Length ? highlighters[i] : null;
-        if (hl != null) hl.SetHighlighted(on);
-        // Buttons without a ButtonHighlighter get no highlight rather than a size
-        // change - highlighting is glow-only, so every button stays uniform.
+        if (hl != null) { hl.SetHighlighted(on); return; }
+        // No ButtonHighlighter (e.g. the top tabs): enlarge the highlighted one directly.
+        float s = on ? fallbackScale : 1f;
+        button.transform.localScale = new Vector3(s, s, 1f);
     }
 
     private void CacheHighlighters()
