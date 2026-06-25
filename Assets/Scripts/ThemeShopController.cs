@@ -39,6 +39,31 @@ public class ThemeShopController : MonoBehaviour
         if (ScoreManager.Instance != null)
             ScoreManager.Instance.OnPointsChanged += _ => RefreshLabels();
         if (panel != null) panel.SetActive(false);
+
+        // The top tab bar is always on top of (and clickable over) the shop's
+        // full-screen scrim, so picking any other tab must dismiss the shop -
+        // otherwise the modal lingers over a mode/view the child just switched to.
+        // Both touch and switch-scan paths funnel through these two events.
+        if (GameModeManager.Instance != null)
+            GameModeManager.Instance.OnModeChanged += OnNavigatedAway;
+        if (TwoDMapView.Instance != null)
+            TwoDMapView.Instance.OnViewChanged += OnNavigatedAway;
+    }
+
+    void OnDestroy()
+    {
+        if (GameModeManager.Instance != null)
+            GameModeManager.Instance.OnModeChanged -= OnNavigatedAway;
+        if (TwoDMapView.Instance != null)
+            TwoDMapView.Instance.OnViewChanged -= OnNavigatedAway;
+    }
+
+    private void OnNavigatedAway(GameModeManager.Mode _) => CloseIfOpen();
+    private void OnNavigatedAway(TwoDMapView.ViewMode _) => CloseIfOpen();
+
+    private void CloseIfOpen()
+    {
+        if (panel != null && panel.activeSelf) Close();
     }
 
     public void Open()
