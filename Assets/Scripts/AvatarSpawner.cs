@@ -17,9 +17,18 @@ public class AvatarSpawner : MonoBehaviour
 
     private NavMeshAgent agent;
 
-    void Start()
+    void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
+        // The runtime NavMesh isn't baked until the map loads. Awake runs before the
+        // agent's OnEnable, so disabling it here stops it from logging "Failed to
+        // create agent because there is no valid NavMesh" at scene load. Spawn()
+        // re-enables it once the bake is done.
+        if (!MapGenerator.IsMapReady) agent.enabled = false;
+    }
+
+    void Start()
+    {
         if (map == null) map = FindObjectOfType<MapGenerator>();
 
         if (MapGenerator.IsMapReady) Spawn();
@@ -33,6 +42,9 @@ public class AvatarSpawner : MonoBehaviour
 
     private void Spawn()
     {
+        // NavMesh exists now, so it's safe to create the agent (no warning).
+        if (!agent.enabled) agent.enabled = true;
+
         if (map != null && map.TryFindClearPosition(out Vector3 pos, clearanceCells))
         {
             agent.Warp(pos);

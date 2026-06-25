@@ -192,20 +192,31 @@ public class MapGenerator : MonoBehaviour
     /// transform calibration needed.
     /// </summary>
     public bool TryFindClearPosition(out Vector3 worldPos, int clearanceCells = 2)
+        => TryFindClearPositionNear(0.5f, 0.5f, out worldPos, clearanceCells);
+
+    /// <summary>
+    /// Like <see cref="TryFindClearPosition"/> but biased toward a normalized grid
+    /// point (normX/normY in 0..1). Returns the open, NavMesh-confirmed cell nearest
+    /// that point. Used to scatter distinct room waypoints across the floor (e.g.
+    /// one per quadrant) so each Magic Travel destination resolves to a different
+    /// reachable spot, regardless of which map PNG is loaded.
+    /// </summary>
+    public bool TryFindClearPositionNear(float normX, float normY, out Vector3 worldPos, int clearanceCells = 2)
     {
         worldPos = Vector3.zero;
         if (OccupiedCells == null) return false;
 
+        float targetX = Mathf.Clamp01(normX) * (Cols - 1);
+        float targetY = Mathf.Clamp01(normY) * (Rows - 1);
+
         int bestX = -1, bestY = -1;
         float bestDist = float.MaxValue;
-        float midX = Cols / 2f, midY = Rows / 2f;
-
         for (int x = 0; x < Cols; x++)
         {
             for (int y = 0; y < Rows; y++)
             {
                 if (!IsNeighborhoodClear(x, y, clearanceCells)) continue;
-                float dx = x - midX, dy = y - midY;
+                float dx = x - targetX, dy = y - targetY;
                 float d = dx * dx + dy * dy;
                 if (d < bestDist) { bestDist = d; bestX = x; bestY = y; }
             }

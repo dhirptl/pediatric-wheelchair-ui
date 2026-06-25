@@ -124,9 +124,9 @@ public class ThemeShopController : MonoBehaviour
         Button btn = scanRing[i];
         if (btn == null) return;
         var hl = btn.GetComponent<ButtonHighlighter>();
-        if (hl != null) { hl.SetHighlighted(on); return; }
-        float s = on ? fallbackScale : 1f;
-        btn.transform.localScale = new Vector3(s, s, 1f);
+        if (hl != null) hl.SetHighlighted(on);
+        // Glow-only: cards without a ButtonHighlighter simply don't highlight,
+        // rather than scaling, so every card stays the same size.
     }
 
     private void BuildCards()

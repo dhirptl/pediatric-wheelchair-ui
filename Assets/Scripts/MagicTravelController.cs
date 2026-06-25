@@ -1,9 +1,10 @@
 using UnityEngine;
 
 /// <summary>
-/// In-map Magic Travel destination buttons. The first press of a room that was
-/// never calibrated starts the admin mini-map calibration flow; every later
-/// press sends the wheelchair there through the WheelchairStateBridge.
+/// In-map Magic Travel destination buttons. Each press sends the wheelchair to the
+/// room's coordinate through the WheelchairStateBridge. The coordinate comes from
+/// RoomCalibrationManager's active source (SIM markers now, the robot's ROS room
+/// waypoints later) - no per-room calibration is required for the buttons to work.
 /// </summary>
 public class MagicTravelController : MonoBehaviour
 {
@@ -17,13 +18,9 @@ public class MagicTravelController : MonoBehaviour
             return;
         }
 
-        if (!cal.IsCalibrated(roomName))
-        {
-            cal.BeginCalibration(roomName);
-            return;
-        }
-
         if (cal.TryGetRoomPosition(roomName, out Vector3 pos) && WheelchairStateBridge.Instance != null)
             WheelchairStateBridge.Instance.SendNavigationGoal(pos);
+        else
+            Debug.LogWarning("[MagicTravel] No coordinate available for '" + roomName + "' yet.");
     }
 }

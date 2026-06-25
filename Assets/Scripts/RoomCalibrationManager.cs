@@ -5,14 +5,25 @@ using UnityEngine.AI;
 
 /// <summary>
 /// Owns the world coordinates of named rooms ("Target_Kitchen", ...).
-/// Sources, in priority order:
-///   1. Admin-calibrated coordinates (dropped on the mini-map, persisted as JSON
-///      in PlayerPrefs so they survive between trial sessions).
-///   2. The Target_* scene markers, snapped onto the baked NavMesh on map load.
-/// Phase 2 adds the mini-map click calibration flow on top of this store.
+///
+/// The coordinate SOURCE mirrors the SIMULATION_PLACEHOLDER / ROS_CONNECTED seam
+/// used by WheelchairStateBridge (motion) and FollowAssistBackend (detection):
+///   - SIMULATION_PLACEHOLDER (now): the Target_* scene markers, placed onto the
+///     runtime-baked NavMesh - one per quadrant if a marker was authored off-mesh -
+///     so every room resolves to a distinct, drivable spot with no setup.
+///   - ROS_CONNECTED (this summer): the wheelchair already knows each room's
+///     coordinate (saved waypoints / map server); they arrive over a ROS topic and
+///     are returned through the same TryGetRoomPosition API - the GUI never owns
+///     the coordinates.
+///
+/// An optional admin mini-map calibration (BeginCalibration/SetRoomPosition,
+/// persisted in PlayerPrefs) can override the source for a specific room, but it is
+/// no longer required for the room buttons to work.
 /// </summary>
 public class RoomCalibrationManager : MonoBehaviour
 {
+    public enum RoomSource { SIMULATION_PLACEHOLDER, ROS_CONNECTED }
+
     [Serializable]
     public class RoomEntry
     {
@@ -29,10 +40,16 @@ public class RoomCalibrationManager : MonoBehaviour
 
     public static RoomCalibrationManager Instance { get; private set; }
 
-    [Tooltip("Scene markers (Target_*) snapped to the NavMesh when the map is ready. Auto-discovered by name prefix if left empty.")]
+    [Header("Architecture Toggle")]
+    [Tooltip("SIMULATION = room coordinates come from the scene Target_* markers on the runtime NavMesh. ROS_CONNECTED = the wheelchair supplies known room waypoints from a ROS topic (this summer).")]
+    public RoomSource currentMode = RoomSource.SIMULATION_PLACEHOLDER;
+
+    [Tooltip("Scene markers (Target_*) placed onto the NavMesh when the map is ready. Auto-discovered by name prefix if left empty.")]
     public Transform[] roomTargets;
-    [Tooltip("Search radius when snapping a marker onto the NavMesh.")]
+    [Tooltip("Search radius when snapping a marker that was authored near the NavMesh onto it.")]
     public float snapSampleRadius = 15f;
+    [Tooltip("Normalized floor point (0..1 in X/Z) to scatter each room toward when its marker was authored off the current NavMesh. Keyed by marker name; unknown rooms fan out by index.")]
+    public float roomSpreadClearanceCells = 2;
 
     [Header("Calibration UI")]
     [Tooltip("HUD text shown while waiting for the admin to tap the mini-map.")]
@@ -62,13 +79,13 @@ public class RoomCalibrationManager : MonoBehaviour
     void Start()
     {
         if (promptText != null) promptText.gameObject.SetActive(false);
-        if (MapGenerator.IsMapReady) SnapTargetsToNavMesh();
-        else MapGenerator.OnMapReady += SnapTargetsToNavMesh;
+        if (MapGenerator.IsMapReady) PlaceRooms();
+        else MapGenerator.OnMapReady += PlaceRooms;
     }
 
     void OnDestroy()
     {
-        MapGenerator.OnMapReady -= SnapTargetsToNavMesh;
+        MapGenerator.OnMapReady -= PlaceRooms;
         if (Instance == this) Instance = null;
     }
 
@@ -98,17 +115,30 @@ public class RoomCalibrationManager : MonoBehaviour
     private static string PrettyName(string roomName)
         => roomName.StartsWith("Target_") ? roomName.Substring("Target_".Length) : roomName;
 
-    /// <summary>Calibrated coordinates first, snapped scene marker as fallback.</summary>
+    /// <summary>
+    /// The room's world coordinate. Admin mini-map calibration overrides everything;
+    /// otherwise it comes from the active source (SIM markers now, ROS waypoints later).
+    /// </summary>
     public bool TryGetRoomPosition(string roomName, out Vector3 pos)
     {
-        if (calibrated.TryGetValue(roomName, out pos)) return true;
-
-        Transform marker = FindTarget(roomName);
-        if (marker != null)
+        if (currentMode == RoomSource.SIMULATION_PLACEHOLDER)
         {
-            pos = marker.position;
-            return true;
+            // SIM: the placed scene marker is the source of truth (it stands in for
+            // the robot's known coordinate, and PlaceRooms guarantees it's on the
+            // NavMesh). It deliberately takes precedence over any persisted mini-map
+            // calibration, which can be stale from an older/larger map.
+            Transform marker = FindTarget(roomName);
+            if (marker != null) { pos = marker.position; return true; }
         }
+        else // ROS_CONNECTED
+        {
+            // LATER THIS SUMMER: the wheelchair already knows each room's coordinate
+            // (saved waypoints / map server). Read it from the ROS topic, e.g.:
+            //   if (roomWaypointClient.TryGet(roomName, out pos)) return true;
+        }
+
+        // Fallback: an explicit admin mini-map calibration, if one was set.
+        if (calibrated.TryGetValue(roomName, out pos)) return true;
 
         pos = Vector3.zero;
         return false;
@@ -138,20 +168,51 @@ public class RoomCalibrationManager : MonoBehaviour
 
     // --- internals -----------------------------------------------------------
 
-    private void SnapTargetsToNavMesh()
+    // Normalized floor points (0..1 in X/Z) the four known rooms scatter toward when
+    // their authored marker is off the current NavMesh - one per quadrant so the
+    // destinations stay distinct. The SIM stand-in for the robot's known waypoints.
+    private static readonly Dictionary<string, Vector2> SimQuadrants = new Dictionary<string, Vector2>
     {
+        { "Target_Kitchen",    new Vector2(0.75f, 0.75f) },
+        { "Target_Bathroom",   new Vector2(0.25f, 0.75f) },
+        { "Target_Bedroom",    new Vector2(0.25f, 0.25f) },
+        { "Target_LivingRoom", new Vector2(0.75f, 0.25f) },
+    };
+
+    /// <summary>
+    /// SIM source: put every Target_* marker onto the baked NavMesh. A marker that
+    /// was authored near the mesh keeps its spot (snapped on); one stranded off-mesh
+    /// (e.g. after the map shrank) is relocated to its quadrant so the room is still
+    /// reachable. ROS mode skips this - the wheelchair supplies the coordinates.
+    /// </summary>
+    private void PlaceRooms()
+    {
+        if (currentMode != RoomSource.SIMULATION_PLACEHOLDER) return;
+
+        var map = FindObjectOfType<MapGenerator>();
+        int index = 0;
         foreach (Transform t in AllTargets())
         {
-            if (t == null) continue;
+            if (t == null) { index++; continue; }
+
+            // Keep an authored position that's already on/near the mesh.
             if (NavMesh.SamplePosition(t.position, out NavMeshHit hit, snapSampleRadius, NavMesh.AllAreas))
             {
                 t.position = hit.position;
+                index++;
+                continue;
             }
+
+            // Off-mesh: relocate to a distinct reachable cell (quadrant by name, else by index).
+            Vector2 norm = SimQuadrants.TryGetValue(t.name, out Vector2 q)
+                ? q
+                : new Vector2(((index % 2) == 0) ? 0.3f : 0.7f, ((index / 2) % 2 == 0) ? 0.3f : 0.7f);
+
+            if (map != null && map.TryFindClearPositionNear(norm.x, norm.y, out Vector3 placed, (int)roomSpreadClearanceCells))
+                t.position = placed;
             else
-            {
-                Debug.LogWarning("[RoomCalibration] Marker '" + t.name + "' found no NavMesh within "
-                    + snapSampleRadius + " m - calibrate it via the mini-map.");
-            }
+                Debug.LogWarning("[RoomCalibration] Could not place room marker '" + t.name + "' on the NavMesh.");
+            index++;
         }
     }
 
