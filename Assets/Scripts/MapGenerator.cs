@@ -27,6 +27,14 @@ public class MapGenerator : MonoBehaviour
     [Tooltip("Drop wall cells that have fewer than this many occupied orthogonal neighbors (removes lone speckles / stray dots on the floor). 0 disables de-speckling.")]
     public int minNeighbors = 1;
 
+    [Header("Wall Style")]
+    [Tooltip("Grow walls outward by this many cells so thin LIDAR lines become solid, continuous walls. 0 = off. 1 = subtle, 2-3 = bold. Higher narrows doorways.")]
+    public int wallThickness = 1;
+    [Tooltip("When thickening, never fill a corridor/doorway centerline, so passages the chair drives through stay open (they narrow but never seal).")]
+    public bool protectWalkable = true;
+    [Tooltip("Merge adjacent wall cells into large boxes so walls are smooth flat slabs (and far fewer objects) instead of a grid of cubes.")]
+    public bool smoothMergeWalls = true;
+
     [Header("Trim / Crop")]
     [Tooltip("Smallest fraction of the original PNG a crop may keep on either axis (guards against trimming the map to nothing).")]
     public float minCropFraction = 0.1f;
@@ -193,23 +201,13 @@ public class MapGenerator : MonoBehaviour
             occ = cleaned;
         }
 
-        // 4. BUILD THE WALLS
-        int wallCount = 0;
-        for (int cxi = 0; cxi < cols; cxi++)
-        {
-            for (int cyi = 0; cyi < rows; cyi++)
-            {
-                if (!occ[cxi, cyi]) continue;
-                float cx = cxi * wc + wc / 2f;
-                float cz = cyi * wc + wc / 2f;
-                Vector3 spawnPosition = new Vector3(cx - offsetX, wallHeight / 2f, cz - offsetZ);
+        // 3b. THICKEN: grow thin LIDAR walls into solid walls, protecting passages.
+        if (wallThickness > 0) occ = ThickenWalls(occ, cols, rows);
 
-                GameObject newWall = Instantiate(wallPrefab, spawnPosition, Quaternion.identity);
-                newWall.transform.localScale = new Vector3(wc, wallHeight, wc);
-                newWall.transform.parent = mapParent.transform;
-                wallCount++;
-            }
-        }
+        // 4. BUILD THE WALLS (merged into smooth slabs, or one cube per cell)
+        int wallCount = smoothMergeWalls
+            ? BuildMergedWalls(occ, cols, rows, wc, mapParent.transform)
+            : BuildCellWalls(occ, cols, rows, wc, mapParent.transform);
 
         LastWallCount = wallCount;
         Debug.Log("Map Built and Centered! Walls: " + wallCount);
@@ -235,6 +233,138 @@ public class MapGenerator : MonoBehaviour
         cellWorld = wc;
         IsMapReady = true;
         OnMapReady?.Invoke();
+    }
+
+    // --- Wall styling helpers -----------------------------------------------
+
+    /// <summary>
+    /// Dilate (thicken) walls by <see cref="wallThickness"/> cells so thin LIDAR
+    /// lines become solid walls. When <see cref="protectWalkable"/> is on, the
+    /// medial-axis "ridge" of the free space is never filled, so every corridor and
+    /// doorway keeps a connected open centerline (passages narrow but never seal).
+    /// </summary>
+    private bool[,] ThickenWalls(bool[,] occ, int cols, int rows)
+    {
+        // Chebyshev distance transform: D = cells to the nearest wall (walls = 0).
+        const int FAR = 1 << 29;
+        int[,] d = new int[cols, rows];
+        for (int x = 0; x < cols; x++)
+            for (int y = 0; y < rows; y++)
+                d[x, y] = occ[x, y] ? 0 : FAR;
+
+        for (int x = 0; x < cols; x++)
+            for (int y = 0; y < rows; y++)
+            {
+                if (d[x, y] == 0) continue;
+                int best = d[x, y];
+                best = Mathf.Min(best, 1 + Near(d, x - 1, y, cols, rows));
+                best = Mathf.Min(best, 1 + Near(d, x, y - 1, cols, rows));
+                best = Mathf.Min(best, 1 + Near(d, x - 1, y - 1, cols, rows));
+                best = Mathf.Min(best, 1 + Near(d, x + 1, y - 1, cols, rows));
+                d[x, y] = best;
+            }
+        for (int x = cols - 1; x >= 0; x--)
+            for (int y = rows - 1; y >= 0; y--)
+            {
+                if (d[x, y] == 0) continue;
+                int best = d[x, y];
+                best = Mathf.Min(best, 1 + Near(d, x + 1, y, cols, rows));
+                best = Mathf.Min(best, 1 + Near(d, x, y + 1, cols, rows));
+                best = Mathf.Min(best, 1 + Near(d, x + 1, y + 1, cols, rows));
+                best = Mathf.Min(best, 1 + Near(d, x - 1, y + 1, cols, rows));
+                d[x, y] = best;
+            }
+
+        bool[,] result = (bool[,])occ.Clone();
+        for (int x = 0; x < cols; x++)
+            for (int y = 0; y < rows; y++)
+            {
+                if (occ[x, y]) continue;                 // already a wall
+                if (d[x, y] < 1 || d[x, y] > wallThickness) continue; // outside the grow band
+                if (protectWalkable && IsRidge(d, x, y, cols, rows)) continue; // keep the centerline open
+                result[x, y] = true;
+            }
+        return result;
+    }
+
+    // Distance of an in-bounds neighbor; out-of-bounds reads as a wall (0) so the
+    // map border behaves like an enclosing wall for the transform.
+    private static int Near(int[,] d, int x, int y, int cols, int rows)
+        => (x < 0 || y < 0 || x >= cols || y >= rows) ? 0 : d[x, y];
+
+    // A free cell on the medial ridge: its clearance is >= every in-bounds neighbor's
+    // (non-strict, so corridor centerlines and plateaus are all protected).
+    private static bool IsRidge(int[,] d, int x, int y, int cols, int rows)
+    {
+        int c = d[x, y];
+        for (int dx = -1; dx <= 1; dx++)
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                if (dx == 0 && dy == 0) continue;
+                int nx = x + dx, ny = y + dy;
+                if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+                if (d[nx, ny] > c) return false;
+            }
+        return true;
+    }
+
+    /// <summary>Greedy-mesh occupied cells into maximal rectangles, one scaled
+    /// Wallblock per rectangle - smooth flat slabs instead of a grid of cubes.</summary>
+    private int BuildMergedWalls(bool[,] occ, int cols, int rows, float wc, Transform parent)
+    {
+        bool[,] used = new bool[cols, rows];
+        int boxes = 0;
+        for (int y = 0; y < rows; y++)
+            for (int x = 0; x < cols; x++)
+            {
+                if (!occ[x, y] || used[x, y]) continue;
+
+                int x1 = x;
+                while (x1 + 1 < cols && occ[x1 + 1, y] && !used[x1 + 1, y]) x1++;
+
+                int y1 = y;
+                bool grow = true;
+                while (grow && y1 + 1 < rows)
+                {
+                    for (int xi = x; xi <= x1; xi++)
+                        if (!occ[xi, y1 + 1] || used[xi, y1 + 1]) { grow = false; break; }
+                    if (grow) y1++;
+                }
+
+                for (int yi = y; yi <= y1; yi++)
+                    for (int xi = x; xi <= x1; xi++) used[xi, yi] = true;
+
+                SpawnWallBox(x, y, x1, y1, wc, parent);
+                boxes++;
+            }
+        return boxes;
+    }
+
+    /// <summary>Original one-cube-per-cell build (used when smoothMergeWalls is off).</summary>
+    private int BuildCellWalls(bool[,] occ, int cols, int rows, float wc, Transform parent)
+    {
+        int count = 0;
+        for (int x = 0; x < cols; x++)
+            for (int y = 0; y < rows; y++)
+            {
+                if (!occ[x, y]) continue;
+                SpawnWallBox(x, y, x, y, wc, parent);
+                count++;
+            }
+        return count;
+    }
+
+    // Instantiate one wall box spanning the inclusive cell rect [x0..x1] x [y0..y1].
+    private void SpawnWallBox(int x0, int y0, int x1, int y1, float wc, Transform parent)
+    {
+        float worldW = (x1 - x0 + 1) * wc;
+        float worldH = (y1 - y0 + 1) * wc;
+        float centerX = wc * (x0 + x1 + 1) / 2f - offsetX;
+        float centerZ = wc * (y0 + y1 + 1) / 2f - offsetZ;
+
+        GameObject wall = Instantiate(wallPrefab, new Vector3(centerX, wallHeight / 2f, centerZ), Quaternion.identity);
+        wall.transform.localScale = new Vector3(worldW, wallHeight, worldH);
+        wall.transform.parent = parent;
     }
 
     /// <summary>World-space center (y = 0) of a grid cell, matching the wall spawn math.</summary>
