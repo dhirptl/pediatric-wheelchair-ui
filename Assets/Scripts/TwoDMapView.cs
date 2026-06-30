@@ -24,6 +24,8 @@ public class TwoDMapView : MonoBehaviour
     public GameObject miniMapPanel;
     [Tooltip("Wheelchair marker icon floated over the full-screen map.")]
     public RectTransform wheelchairIcon;
+    [Tooltip("Admin 'TRIM' entry button; shown only while the 2D map is up.")]
+    public GameObject trimButton;
 
     [Header("References (auto-found if empty)")]
     public MiniMapController miniMap;
@@ -77,6 +79,7 @@ public class TwoDMapView : MonoBehaviour
         bool twoD = view == ViewMode.TwoD;
         if (twoDMap != null) twoDMap.gameObject.SetActive(twoD);
         if (wheelchairIcon != null) wheelchairIcon.gameObject.SetActive(twoD);
+        if (trimButton != null) trimButton.SetActive(twoD);
         if (miniMapPanel != null) miniMapPanel.SetActive(!twoD);
         // The in-world arrow is the indicator on the small mini-map (3D); in 2D the
         // crisp UI icon replaces it, so hide the arrow to avoid a double marker.
