@@ -13,6 +13,8 @@ public static class GamePrefs
     public const string RoomCalibration = "RoomCalibration";
     public const string OwnedThemes = "OwnedThemes";
     public const string EquippedTheme = "EquippedTheme";
+    public const string OwnedFoods = "OwnedFoods";
+    public const string EquippedFood = "EquippedFood";
     public const string FollowAssistLog = "FollowAssistLog";
     public const string ViewMode = "ViewMode";
     public const string MapCrop = "MapCrop";

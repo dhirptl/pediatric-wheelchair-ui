@@ -4985,6 +4985,7 @@ GameObject:
   - component: {fileID: 756119698}
   - component: {fileID: 756119701}
   - component: {fileID: 756119702}
+  - component: {fileID: 756119703}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -5164,6 +5165,19 @@ MonoBehaviour:
       dwellSeconds: 20
       inputCooldown: 0.18
     fallbackScale: 1.12
+--- !u!114 &756119703
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 756119693}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: edbe4792a35f44084a835ebd374c7a0a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  foods: []
 --- !u!1 &756309901
 GameObject:
   m_ObjectHideFlags: 0
@@ -9190,7 +9204,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4278255615
   m_fontColor: {r: 1, g: 1, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -9203,7 +9217,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2

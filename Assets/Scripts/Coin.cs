@@ -23,7 +23,11 @@ public class Coin : MonoBehaviour
 
     void Awake()
     {
-        bodyRenderer = GetComponentInChildren<Renderer>();
+        // The visible body is now the food billboard (a SpriteRenderer). Target it
+        // explicitly so Collect()/Spawn() toggle the food image, not the leftover
+        // (disabled) coin cylinder or the particle-system renderer.
+        bodyRenderer = GetComponentInChildren<SpriteRenderer>();
+        if (bodyRenderer == null) bodyRenderer = GetComponentInChildren<Renderer>();
         starPop = GetComponentInChildren<ParticleSystem>();
     }
 
